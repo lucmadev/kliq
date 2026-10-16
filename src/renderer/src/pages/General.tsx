@@ -8,13 +8,15 @@ import { Card } from "../components/ui";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
 
-export default function General({ refresh }: { refresh: () => void }) {
+export type GeneralSection = "appearance" | "schedule" | "model" | "mcp";
+
+export default function General({ section, refresh }: { section: GeneralSection; refresh: () => void }) {
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-4">
-      <AppearanceCard />
-      <ScheduleCard refresh={refresh} />
-      <ModelCard refresh={refresh} />
-      <McpCard />
+      {section === "appearance" && <AppearanceCard />}
+      {section === "schedule" && <ScheduleCard refresh={refresh} />}
+      {section === "model" && <ModelCard refresh={refresh} />}
+      {section === "mcp" && <McpCard />}
     </div>
   );
 }

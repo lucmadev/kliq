@@ -1,28 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
-import { Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/animate/tabs";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { Badge } from "@/components/ui/badge";
 import { api, type Status } from "./api";
+import Sidebar, { type View } from "./components/Sidebar";
 import Settings from "./pages/Settings";
 import Videos from "./pages/Videos";
 import Weekly from "./pages/Weekly";
-import { cn } from "@/lib/utils";
 import { num } from "./format";
 import { useI18n } from "./i18n";
 
-type Tab = "week" | "videos" | "settings";
-
 export default function App() {
   const { t, locale } = useI18n();
-  const [tab, setTab] = useState<Tab>("week");
+  const [view, setView] = useState<View>("analytics");
+  const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [video, setVideo] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     api.status().then(setStatus).catch((e: Error) => setError(e.message));
+  }, []);
+
+  const notify = useCallback((message: string) => {
+    toast(message);
   }, []);
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function App() {
 
   const openVideo = (id: string) => {
     setVideo(id);
-    setTab("videos");
+    setView("videos");
     window.scrollTo({ top: 0 });
   };
 
@@ -66,18 +67,13 @@ export default function App() {
   if (!status) return <div className="p-12 text-center text-muted-foreground">{t("app.loading")}</div>;
 
   const hasData = !!status.data_range;
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "week", label: t("tab.week") },
-    { id: "videos", label: t("tab.videos") },
-  ];
+  const settingsView = view !== "analytics" && view !== "videos";
 
   return (
-    <div className="mx-auto max-w-[1240px] px-5 pb-12 max-[620px]:px-3.5">
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-background/90 py-4 backdrop-blur max-[620px]:flex-col max-[620px]:items-stretch">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary" aria-hidden>
-            <svg className="size-5 fill-none stroke-white stroke-[3]" viewBox="0 0 32 32"><path d="M8 22l6-7 4 4 6-9" /></svg>
-          </span>
+    <div className="flex min-h-screen">
+      <Sidebar view={view} expanded={expanded} onExpand={setExpanded} onSelect={setView} />
+      <div className="min-w-0 flex-1 px-6 pb-12 max-[620px]:px-3.5">
+        <header className="sticky top-0 z-10 flex items-center gap-3 bg-background/90 py-4 backdrop-blur">
           <div className="min-w-0">
             <div className="truncate text-[1.05rem] font-semibold">{status.channel?.title ?? t("app.brand_fallback")}</div>
             <div className="text-[0.82rem] text-muted-foreground">
@@ -88,49 +84,26 @@ export default function App() {
               {status.syncing && <Badge className="ml-2">{t("app.syncing")}</Badge>}
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
-            <TabsList>
-              {tabs.map((item) => (
-                <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-          <button
-            type="button"
-            aria-label={t("tab.settings")}
-            aria-pressed={tab === "settings"}
-            onClick={() => setTab("settings")}
-            className={cn(
-              "grid size-9 place-items-center rounded-lg bg-muted text-muted-foreground",
-              tab === "settings" && "bg-background text-foreground shadow-sm ring-1 ring-border",
-            )}
-          >
-            <SettingsIcon className="size-4" />
-          </button>
-        </div>
-      </header>
+        </header>
 
-      <main>
-        {!hasData && tab !== "settings" ? (
+        {!hasData && !settingsView ? (
           <div className="flex flex-col items-center gap-2.5 px-5 py-20 text-center">
             <h1 className="text-[1.8rem] font-semibold tracking-tight">{t("onboard.title")}</h1>
             <p className="text-muted-foreground">{t("onboard.body")}</p>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setTab("settings")}>{t("onboard.cta")}</Button>
+              <Button onClick={() => setView("connection")}>{t("onboard.cta")}</Button>
               <Button variant="outline" onClick={() => void loadDemo()}>{t("onboard.demo")}</Button>
             </div>
             <p className="text-[0.82rem] text-muted-foreground">{t("onboard.demo_hint")}</p>
           </div>
-        ) : tab === "week" ? (
+        ) : view === "analytics" ? (
           <Weekly status={status} onOpenVideo={openVideo} />
-        ) : tab === "videos" ? (
+        ) : view === "videos" ? (
           <Videos status={status} selected={video} onSelect={setVideo} />
         ) : (
-          <Settings status={status} refresh={refresh} notify={(message) => toast(message)} />
+          <Settings section={view} status={status} refresh={refresh} notify={notify} />
         )}
-      </main>
+      </div>
     </div>
   );
 }
