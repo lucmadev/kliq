@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
+import { Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/animate/tabs";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { Badge } from "@/components/ui/badge";
 import { api, type Status } from "./api";
-import Connection from "./pages/Connection";
+import Settings from "./pages/Settings";
 import Videos from "./pages/Videos";
 import Weekly from "./pages/Weekly";
 import { num } from "./format";
 import { useI18n } from "./i18n";
 import { LOCALES, type Locale } from "../../shared/i18n";
 
-type Tab = "week" | "videos" | "connection";
+type Tab = "week" | "videos" | "settings";
 
 export default function App() {
   const { t, locale, setLocale } = useI18n();
@@ -64,7 +65,6 @@ export default function App() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "week", label: t("tab.week") },
     { id: "videos", label: t("tab.videos") },
-    { id: "connection", label: t("tab.connection") },
   ];
 
   return (
@@ -99,18 +99,21 @@ export default function App() {
               {tabs.map((item) => (
                 <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
               ))}
+              <TabsTrigger value="settings" aria-label={t("tab.settings")}>
+                <SettingsIcon className="size-4" />
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
       </header>
 
       <main>
-        {!hasData && tab !== "connection" ? (
+        {!hasData && tab !== "settings" ? (
           <div className="flex flex-col items-center gap-2.5 px-5 py-20 text-center">
             <h1 className="text-[1.8rem] font-semibold tracking-tight">{t("onboard.title")}</h1>
             <p className="text-muted-foreground">{t("onboard.body")}</p>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setTab("connection")}>{t("onboard.cta")}</Button>
+              <Button onClick={() => setTab("settings")}>{t("onboard.cta")}</Button>
               <Button variant="outline" onClick={() => void loadDemo()}>{t("onboard.demo")}</Button>
             </div>
             <p className="text-[0.82rem] text-muted-foreground">{t("onboard.demo_hint")}</p>
@@ -120,7 +123,7 @@ export default function App() {
         ) : tab === "videos" ? (
           <Videos status={status} selected={video} onSelect={setVideo} />
         ) : (
-          <Connection status={status} refresh={refresh} notify={(message) => toast(message)} />
+          <Settings status={status} refresh={refresh} notify={(message) => toast(message)} />
         )}
       </main>
     </div>
