@@ -11,7 +11,11 @@
     "types": ["node"],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "outDir": "out/tsc-node"
+    "outDir": "out/tsc-node",
+    "paths": {
+      "googleapis": ["./src/types/googleapis.ts"],
+      "google-auth-library": ["./src/types/google-auth-library.ts"]
+    }
   },
-  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "vitest.config.ts"]
+  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/types/**/*", "vitest.config.ts"]
 }
