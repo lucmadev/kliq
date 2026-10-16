@@ -1,7 +1,8 @@
 import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "node:path";
 import { kvGet, kvSet, openDatabase, setDatabase } from "./db";
-import { registerIpc } from "./ipc";
+import { installKeychain } from "./keychain";
+import { currentLocale, registerIpc } from "./ipc";
 import { isLocale } from "../shared/i18n";
 
 const CSP = [
@@ -77,6 +78,7 @@ app.whenReady().then(() => {
   if (!isLocale(kvGet(db, "locale"))) {
     kvSet(db, "locale", app.getLocale().toLowerCase().startsWith("es") ? "es" : "en");
   }
+  installKeychain(join(app.getPath("userData"), "secrets.json"), currentLocale);
   registerIpc();
   hardenSession();
   createWindow();

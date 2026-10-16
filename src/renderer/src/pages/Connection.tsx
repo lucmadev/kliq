@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api, type Status } from "../api";
 import { Card } from "../components/ui";
 import { ago, day, num } from "../format";
@@ -12,6 +12,16 @@ export default function Connection({ status, refresh, notify }: {
   const { t, locale } = useI18n();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [secretHint, setSecretHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.client().then((client) => {
+      setClientId(client.clientId);
+      setSecretHint(client.secretHint);
+    }).catch(() => undefined);
+  }, [status.configured, status.connected]);
 
   const sync = async () => {
     setBusy(true);
@@ -34,14 +44,43 @@ export default function Connection({ status, refresh, notify }: {
     refresh();
   };
 
+  const saveClient = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const saved = await api.saveClient(clientId, clientSecret);
+      setClientSecret("");
+      setSecretHint(saved.secretHint);
+      setMsg(t("conn.save_client"));
+      refresh();
+    } catch (err) {
+      setMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const connect = async () => {
+    setBusy(true);
+    try {
+      await api.connect();
+    } catch (err) {
+      setMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="page narrow">
       <Card title={t("conn.title")}>
-        {!status.configured ? (
-          <div className="setup">
-            <p>{t("conn.missing_client")}</p>
-          </div>
-        ) : status.connected ? (
+        <p className="muted small">{t("conn.missing_client")}</p>
+        <form className="csv-form" onSubmit={(e) => void saveClient(e)}>
+          <label>{t("conn.client_id")} <input value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
+          <label>{t("conn.client_secret")} <input type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
+          <button className="btn ghost" disabled={busy}>{t("conn.save_client")}</button>
+        </form>
+        {status.connected ? (
           <div className="conn-row">
             <div>
               <strong>{status.channel?.title ?? t("app.brand_fallback")}</strong>
@@ -67,7 +106,7 @@ export default function Connection({ status, refresh, notify }: {
         ) : (
           <div className="conn-row">
             <p className="muted">{t("conn.readonly")}</p>
-            <button className="btn" onClick={() => notify(t("conn.connect"))}>{t("conn.connect")}</button>
+            <button className="btn" onClick={() => void connect()} disabled={busy || !status.configured}>{t("conn.connect")}</button>
           </div>
         )}
         {msg && <p className="notice">{msg}</p>}

@@ -7,7 +7,8 @@ import { isLocale, translate, type Locale } from "../shared/i18n";
 import { listVideos, videoDetail } from "./videos";
 import { importReach } from "./csv";
 import { latestReach } from "./report";
-import { isConfigured, isConnected } from "./auth";
+import { clientView, disconnectAccount, isConfigured, isConnected, saveClient } from "./auth";
+import { startLogin } from "./oauth";
 import { fetchRetention, isRunning, runSync } from "./youtube";
 
 export function runtime(): Runtime {
@@ -55,6 +56,20 @@ export function registerIpc(): void {
     return { imported };
   });
   handle("reach", () => latestReach(database()));
+  handle("client", () => clientView());
+  handle("save-client", (payload) => {
+    const body = payload as { clientId?: string; clientSecret?: string };
+    saveClient(body.clientId ?? "", body.clientSecret ?? "", currentLocale());
+    return clientView();
+  });
+  handle("connect", () => {
+    startLogin(currentLocale());
+    return { ok: true };
+  });
+  handle("disconnect", () => {
+    disconnectAccount();
+    return { ok: true };
+  });
   handle("sync", () => {
     const locale = currentLocale();
     if (!isConnected()) throw new AppError(translate(locale, "error.not_connected"));

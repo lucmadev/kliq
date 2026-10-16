@@ -15,6 +15,16 @@ const kliq = {
   retention: (id: string) => ipcRenderer.invoke("retention", id),
   sync: () => ipcRenderer.invoke("sync"),
   disconnect: () => ipcRenderer.invoke("disconnect"),
+  client: () => ipcRenderer.invoke("client"),
+  saveClient: (payload: { clientId: string; clientSecret: string }) => ipcRenderer.invoke("save-client", payload),
+  connect: () => ipcRenderer.invoke("connect"),
+  onAuth: (cb: (result: { ok: boolean; message?: string }) => void) => {
+    const listener = (_event: unknown, result: { ok: boolean; message?: string }) => cb(result);
+    ipcRenderer.on("auth-result", listener);
+    return () => {
+      ipcRenderer.removeListener("auth-result", listener);
+    };
+  },
   importReach: (payload: { csv: string; periodStart: string; periodEnd: string }) =>
     ipcRenderer.invoke("import-reach", payload),
 };

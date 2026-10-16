@@ -247,6 +247,8 @@ const en = {
   "error.sync_busy": "A sync is already running",
   "error.keychain": "The system keychain is not available. Secrets were not saved.",
   "error.bad_url": "The base URL must be an http or https address",
+  "oauth.page_ok": "Connected. You can close this window and return to Kliq.",
+  "oauth.page_fail": "Something went wrong. Close this window and try again in Kliq.",
 } as const;
 
 const es: { [K in keyof typeof en]: string } = {
@@ -492,6 +494,8 @@ const es: { [K in keyof typeof en]: string } = {
   "error.sync_busy": "Ya hay un sync corriendo",
   "error.keychain": "El llavero del sistema no está disponible. No se guardaron secretos.",
   "error.bad_url": "La URL base tiene que ser http o https",
+  "oauth.page_ok": "Conectado. Podés cerrar esta ventana y volver a Kliq.",
+  "oauth.page_fail": "Algo falló. Cerrá esta ventana y probá de nuevo en Kliq.",
 };
 
 export type MessageKey = keyof typeof en;

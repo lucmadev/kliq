@@ -26,6 +26,13 @@ export default function App() {
   }, [refresh, locale]);
 
   useEffect(() => {
+    return api.onAuth((result) => {
+      setToast(result.ok ? t("toast.connected") : result.message ?? t("error.oauth_generic"));
+      refresh();
+    });
+  }, [refresh, t]);
+
+  useEffect(() => {
     if (!status?.syncing) return;
     const timer = setInterval(refresh, 4000);
     return () => clearInterval(timer);

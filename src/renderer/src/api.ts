@@ -116,6 +116,11 @@ export const api = {
   retention: (id: string) => window.kliq.retention(id),
   sync: () => window.kliq.sync(),
   disconnect: () => window.kliq.disconnect(),
+  client: () => window.kliq.client() as Promise<{ clientId: string; secretHint: string | null }>,
+  saveClient: (clientId: string, clientSecret: string) =>
+    window.kliq.saveClient({ clientId, clientSecret }) as Promise<{ clientId: string; secretHint: string | null }>,
+  connect: () => window.kliq.connect() as Promise<{ ok: boolean }>,
+  onAuth: (cb: (result: { ok: boolean; message?: string }) => void) => window.kliq.onAuth(cb),
   importReach: async (file: File, start: string, end: string) =>
     window.kliq.importReach({ csv: await file.text(), periodStart: start, periodEnd: end }),
 };
