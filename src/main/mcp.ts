@@ -8,7 +8,8 @@ import { z } from "zod";
 import type Database from "better-sqlite3";
 import { isConfigured, isConnected } from "./auth";
 import { importReach } from "./csv";
-import { database, kvGet } from "./db";
+import { metaDatabase, metaReady, prefsDatabase } from "./accounts";
+import { kvGet, peekDatabase } from "./db";
 import { AppError } from "./errors";
 import { llmReady } from "./llm";
 import { buildReport, latestReach } from "./report";
@@ -49,7 +50,14 @@ let httpServer: http.Server | null = null;
 let listenPort: number | null = null;
 
 function localeOf(db: Database.Database): Locale {
-  const stored = kvGet(db, "locale");
+  const stored = kvGet(prefsDatabase(db), "locale");
+  return isLocale(stored) ? stored : "en";
+}
+
+function uiLocale(): Locale {
+  const source = metaReady() ? metaDatabase() : peekDatabase();
+  if (!source) return "en";
+  const stored = kvGet(source, "locale");
   return isLocale(stored) ? stored : "en";
 }
 
@@ -77,7 +85,7 @@ export async function runTool(db: Database.Database, name: string, args: unknown
   try {
     switch (name) {
       case "get_status": {
-        const settings = loadSettings(db);
+        const settings = loadSettings(prefsDatabase(db));
         return textResult(getStatus(db, {
           configured: isConfigured(),
           connected: isConnected(),
@@ -168,7 +176,11 @@ function buildServer(): McpServer {
   const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
 
   const add = (name: (typeof TOOL_NAMES)[number], description: string, inputSchema: z.ZodType, annotations: typeof read) => {
-    mcp.registerTool(name, { description, inputSchema, annotations }, async (args) => runTool(database(), name, args));
+    mcp.registerTool(name, { description, inputSchema, annotations }, async (args) => {
+      const db = peekDatabase();
+      if (!db) return errorResult(translate(uiLocale(), "error.no_data"));
+      return runTool(db, name, args);
+    });
   };
 
   add("get_status", "Channel connection, last sync, and whether a model key is configured. Never returns secrets.", z.object({}), read);
@@ -189,12 +201,20 @@ function buildServer(): McpServer {
   mcp.registerPrompt("weekly_review", {
     description: "Review one week against the previous week.",
     argsSchema: { week: z.string().optional() },
-  }, async (args) => runPrompt(database(), "weekly_review", args));
+  }, async (args) => {
+    const db = peekDatabase();
+    if (!db) return { messages: [{ role: "user" as const, content: { type: "text" as const, text: translate(uiLocale(), "error.no_data") } }] };
+    return runPrompt(db, "weekly_review", args);
+  });
 
   mcp.registerPrompt("video_check", {
     description: "Look at one video's recent performance.",
     argsSchema: { videoId: z.string() },
-  }, async (args) => runPrompt(database(), "video_check", args));
+  }, async (args) => {
+    const db = peekDatabase();
+    if (!db) return { messages: [{ role: "user" as const, content: { type: "text" as const, text: translate(uiLocale(), "error.no_data") } }] };
+    return runPrompt(db, "video_check", args);
+  });
 
   return mcp;
 }

@@ -1,4 +1,5 @@
 import { OAuth2Client } from "google-auth-library";
+import { accountTokenKey, activeAccountId, DEMO_ID, metaReady } from "./accounts";
 import { AppError } from "./errors";
 import { SECRET, secretGet, secretSet, secretsAvailable } from "./secrets";
 import { translate, type Locale } from "../shared/i18n";
@@ -13,7 +14,10 @@ export function isConfigured(): boolean {
 }
 
 export function isConnected(): boolean {
-  return Boolean(secretGet(SECRET.refreshToken));
+  if (!metaReady()) return Boolean(secretGet(SECRET.refreshToken));
+  const id = activeAccountId();
+  if (!id || id === DEMO_ID) return false;
+  return Boolean(secretGet(accountTokenKey(id)));
 }
 
 export function clientView(): { clientId: string; secretHint: string | null } {
@@ -34,14 +38,18 @@ export function saveClient(clientId: string, clientSecret: string, locale: Local
   else if (!secretGet(SECRET.clientSecret)) throw new AppError(translate(locale, "error.not_configured"));
 }
 
-export function disconnectAccount(): void {
-  secretSet(SECRET.refreshToken, null);
+export function disconnectAccount(id: string): void {
+  if (!id || id === DEMO_ID) return;
+  secretSet(accountTokenKey(id), null);
 }
 
 export async function loadClient(locale: Locale): Promise<OAuth2Client> {
   const clientId = secretGet(SECRET.clientId);
   const clientSecret = secretGet(SECRET.clientSecret);
-  const refreshToken = secretGet(SECRET.refreshToken);
+  const id = activeAccountId();
+  const refreshToken = metaReady()
+    ? (id && id !== DEMO_ID ? secretGet(accountTokenKey(id)) : null)
+    : secretGet(SECRET.refreshToken);
   if (!clientId || !clientSecret) throw new AppError(translate(locale, "error.not_configured"));
   if (!refreshToken) throw new AppError(translate(locale, "error.not_connected"));
   const client = new OAuth2Client({ clientId, clientSecret });

@@ -1,5 +1,14 @@
+import type Database from "better-sqlite3";
 import { clipboard, ipcMain } from "electron";
-import { database, kvGet, kvSet } from "./db";
+import {
+  activateAccount,
+  activeAccountId,
+  DEMO_ID,
+  metaDatabase,
+  metaReady,
+  rememberAccount,
+} from "./accounts";
+import { database, kvGet, kvSet, peekDatabase } from "./db";
 import { AppError } from "./errors";
 import { getReport, getStatus, getWeeks, type Runtime } from "./status";
 import { seed } from "./seed";
@@ -15,8 +24,18 @@ import { loadSettings } from "./settings";
 import { nextSyncIso, rescheduleDailySync } from "./schedule";
 import { configureMcp, mcpConfigText, mcpView, rotateMcpToken } from "./mcp";
 
+function prefs(): Database.Database {
+  return metaReady() ? metaDatabase() : database();
+}
+
+function channelDb(): Database.Database {
+  const db = peekDatabase();
+  if (!db) throw new AppError(translate(currentLocale(), "error.no_data"), 404);
+  return db;
+}
+
 export function runtime(): Runtime {
-  const settings = loadSettings(database());
+  const settings = loadSettings(prefs());
   return {
     configured: isConfigured(),
     connected: isConnected(),
@@ -39,7 +58,9 @@ function handle(channel: string, fn: (args: unknown) => unknown): void {
 }
 
 export function currentLocale(): Locale {
-  const stored = kvGet(database(), "locale");
+  const db = metaReady() ? metaDatabase() : peekDatabase();
+  if (!db) return "en";
+  const stored = kvGet(db, "locale");
   return isLocale(stored) ? stored : "en";
 }
 
@@ -47,20 +68,38 @@ export function registerIpc(): void {
   handle("locale", () => currentLocale());
   handle("set-locale", (value) => {
     if (!isLocale(value)) throw new AppError(translate(currentLocale(), "error.generic"));
-    kvSet(database(), "locale", value);
+    kvSet(prefs(), "locale", value);
     return value;
   });
-  handle("status", () => getStatus(database(), runtime()));
-  handle("weeks", () => getWeeks(database()));
-  handle("report", (week) => getReport(database(), typeof week === "string" ? week : null, currentLocale()));
-  handle("videos", () => listVideos(database()));
-  handle("video", (id) => videoDetail(database(), String(id ?? ""), currentLocale()));
+  handle("status", () => {
+    const db = peekDatabase();
+    if (!db) {
+      const settings = loadSettings(prefs());
+      return {
+        configured: isConfigured(),
+        connected: false,
+        demo: false,
+        channel: null,
+        videos: 0,
+        data_range: null,
+        last_sync: null,
+        syncing: isRunning(),
+        next_sync: nextSyncIso(),
+        llm: { provider: settings.llmProvider, enabled: llmReady(settings) },
+      };
+    }
+    return getStatus(db, runtime());
+  });
+  handle("weeks", () => getWeeks(channelDb()));
+  handle("report", (week) => getReport(channelDb(), typeof week === "string" ? week : null, currentLocale()));
+  handle("videos", () => listVideos(channelDb()));
+  handle("video", (id) => videoDetail(channelDb(), String(id ?? ""), currentLocale()));
   handle("import-reach", (payload) => {
     const body = payload as { csv?: string; periodStart?: string; periodEnd?: string };
-    const imported = importReach(database(), body.csv ?? "", body.periodStart ?? "", body.periodEnd ?? "", currentLocale());
+    const imported = importReach(channelDb(), body.csv ?? "", body.periodStart ?? "", body.periodEnd ?? "", currentLocale());
     return { imported };
   });
-  handle("reach", () => latestReach(database()));
+  handle("reach", () => latestReach(channelDb()));
   handle("client", () => clientView());
   handle("save-client", (payload) => {
     const body = payload as { clientId?: string; clientSecret?: string };
@@ -71,47 +110,61 @@ export function registerIpc(): void {
     startLogin(currentLocale());
     return { ok: true };
   });
-  handle("disconnect", () => {
-    disconnectAccount();
+  handle("disconnect", (id) => {
+    const target = typeof id === "string" && id ? id : activeAccountId();
+    if (target) disconnectAccount(target);
     return { ok: true };
   });
   handle("sync", () => {
     const locale = currentLocale();
     if (!isConnected()) throw new AppError(translate(locale, "error.not_connected"));
     if (isRunning()) return { started: false, reason: translate(locale, "error.sync_busy") };
-    void runSync(database());
+    void runSync(channelDb());
     return { started: true };
   });
   handle("retention", async (id) => {
     const locale = currentLocale();
     if (!isConnected()) throw new AppError(translate(locale, "error.not_connected"));
-    return { points: await fetchRetention(database(), String(id ?? ""), locale) };
+    return { points: await fetchRetention(channelDb(), String(id ?? ""), locale) };
   });
   handle("seed-demo", async () => {
-    const n = await seed(database());
+    const locale = currentLocale();
+    if (isRunning()) throw new AppError(translate(locale, "error.sync_busy"));
+    if (metaReady()) {
+      rememberAccount(DEMO_ID, "Demo Channel", null);
+      activateAccount(DEMO_ID, locale, false);
+    }
+    const n = await seed(channelDb());
+    if (metaReady()) {
+      const ch = channelDb().prepare("SELECT title, thumbnail FROM channel LIMIT 1").get() as
+        | { title: string; thumbnail: string | null }
+        | undefined;
+      if (ch) rememberAccount(DEMO_ID, ch.title, ch.thumbnail);
+    }
     return { videos: n };
   });
-  handle("settings", () => settingsView(database()));
+  handle("settings", () => settingsView(prefs()));
   handle("save-settings", (payload) => {
-    const view = updateSettings(database(), payload, currentLocale());
+    const view = updateSettings(prefs(), payload, currentLocale());
     rescheduleDailySync();
     return view;
   });
   handle("save-llm-key", (key) => saveLlmKey(String(key ?? ""), currentLocale()));
   handle("clear-llm-key", () => clearLlmKey(currentLocale()));
-  handle("mcp", () => mcpView(database()));
-  handle("save-mcp", (payload) => configureMcp(database(), payload, currentLocale()));
-  handle("rotate-mcp", () => rotateMcpToken(database(), currentLocale()));
+  handle("mcp", () => mcpView(prefs()));
+  handle("save-mcp", (payload) => configureMcp(prefs(), payload, currentLocale()));
+  handle("rotate-mcp", () => rotateMcpToken(prefs(), currentLocale()));
   handle("copy-mcp", () => {
-    clipboard.writeText(mcpConfigText(database(), currentLocale()));
+    clipboard.writeText(mcpConfigText(prefs(), currentLocale()));
     return { copied: true };
   });
   handle("summarize", async (week) => {
     const locale = currentLocale();
-    const report = buildReport(database(), typeof week === "string" ? week : null, locale);
+    const db = channelDb();
+    const report = buildReport(db, typeof week === "string" ? week : null, locale);
     if (!report) throw new AppError(translate(locale, "error.no_data"), 404);
-    const summary = await summarizeReport(database(), report, locale);
-    saveReport(database(), report, summary);
+    const summary = await summarizeReport(prefs(), report, locale);
+    saveReport(db, report, summary);
     return { summary };
   });
 }

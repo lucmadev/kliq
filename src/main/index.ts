@@ -1,7 +1,8 @@
 import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "node:path";
+import { adoptLegacyToken, initAccounts, metaDatabase } from "./accounts";
 import { isConnected } from "./auth";
-import { database, kvGet, kvSet, openDatabase, setDatabase } from "./db";
+import { peekDatabase } from "./db";
 import { installKeychain } from "./keychain";
 import { currentLocale, registerIpc } from "./ipc";
 import { llmReady, summarizeReport } from "./llm";
@@ -10,7 +11,6 @@ import { stopMcpServer, syncMcpWithSettings } from "./mcp";
 import { startDailySync } from "./schedule";
 import { loadSettings } from "./settings";
 import { runSync } from "./youtube";
-import { isLocale } from "../shared/i18n";
 
 const CSP = [
   "default-src 'self'",
@@ -80,28 +80,26 @@ export function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
-  const db = openDatabase(join(app.getPath("userData"), "monitor.db"));
-  setDatabase(db);
-  if (!isLocale(kvGet(db, "locale"))) {
-    kvSet(db, "locale", app.getLocale().toLowerCase().startsWith("es") ? "es" : "en");
-  }
+  initAccounts(app.getPath("userData"), app.getLocale());
   installKeychain(join(app.getPath("userData"), "secrets.json"), currentLocale);
+  adoptLegacyToken();
   setSummarizer({
-    enabled: () => llmReady(loadSettings(database())),
-    summarize: (report) => summarizeReport(database(), report, currentLocale()),
+    enabled: () => llmReady(loadSettings(metaDatabase())),
+    summarize: (report) => summarizeReport(metaDatabase(), report, currentLocale()),
   });
   startDailySync({
     read: () => {
-      const settings = loadSettings(database());
+      const settings = loadSettings(metaDatabase());
       return { tz: settings.tz, hour: settings.syncHour };
     },
-    shouldRun: () => isConnected(),
+    shouldRun: () => isConnected() && peekDatabase() !== null,
     run: () => {
-      void runSync(database());
+      const db = peekDatabase();
+      if (db) void runSync(db);
     },
   });
   registerIpc();
-  void syncMcpWithSettings(database()).catch(() => console.error("mcp start failed"));
+  void syncMcpWithSettings(metaDatabase()).catch(() => console.error("mcp start failed"));
   hardenSession();
   createWindow();
   app.on("activate", () => {

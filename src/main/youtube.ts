@@ -6,6 +6,7 @@ A 300-video channel is about 13 of the 10,000 daily units. Analytics has a separ
 import type { OAuth2Client } from "google-auth-library";
 import { google } from "googleapis";
 import type Database from "better-sqlite3";
+import { noteActiveChannel, prefsDatabase } from "./accounts";
 import { loadClient } from "./auth";
 import { addDays, daterange, lastCompleteWeekStart, parse } from "./dates";
 import { kvGet, kvSet, nowIso } from "./db";
@@ -205,10 +206,12 @@ export async function fetchRetention(db: Database.Database, videoId: string, loc
 export async function runSync(db: Database.Database, daysBack?: number | null): Promise<{ status: string; detail?: string }> {
   if (running) return { status: "busy" };
   running = true;
-  const locale = isLocale(kvGet(db, "locale")) ? (kvGet(db, "locale") as Locale) : "en";
+  const prefs = prefsDatabase(db);
+  const storedLocale = kvGet(prefs, "locale");
+  const locale: Locale = isLocale(storedLocale) ? storedLocale : "en";
   let logId: number | bigint | null = null;
   try {
-    const settings = loadSettings(db);
+    const settings = loadSettings(prefs);
     const hasData = db.prepare("SELECT 1 AS ok FROM channel_daily LIMIT 1").get();
     logId = db.prepare("INSERT INTO sync_log (started_at, status) VALUES (?, 'running')").run(nowIso()).lastInsertRowid;
     const window = daysBack ?? (hasData ? settings.syncDaysBack : settings.initialDaysBack);
@@ -216,6 +219,7 @@ export async function runSync(db: Database.Database, daysBack?: number | null): 
     const start = addDays(end, -(window - 1));
     const auth = await loadClient(locale);
     await syncPublic(auth, db, locale);
+    noteActiveChannel(db);
     await syncAnalytics(auth, db, start, end);
     kvSet(db, "demo", null);
     const generated = await autoGenerateReports(db, locale);

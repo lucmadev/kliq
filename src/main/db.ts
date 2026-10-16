@@ -103,6 +103,14 @@ export function setDatabase(db: Database.Database): void {
   current = db;
 }
 
+export function clearDatabase(): void {
+  current = null;
+}
+
+export function peekDatabase(): Database.Database | null {
+  return current;
+}
+
 export function database(): Database.Database {
   if (!current) throw new Error("Database is not open yet");
   return current;
