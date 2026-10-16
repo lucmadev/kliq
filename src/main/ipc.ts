@@ -4,6 +4,9 @@ import { AppError } from "./errors";
 import { getReport, getStatus, getWeeks, type Runtime } from "./status";
 import { seed } from "./seed";
 import { isLocale, translate, type Locale } from "../shared/i18n";
+import { listVideos, videoDetail } from "./videos";
+import { importReach } from "./csv";
+import { latestReach } from "./report";
 
 export function runtime(): Runtime {
   return {
@@ -42,6 +45,14 @@ export function registerIpc(): void {
   handle("status", () => getStatus(database(), runtime()));
   handle("weeks", () => getWeeks(database()));
   handle("report", (week) => getReport(database(), typeof week === "string" ? week : null, currentLocale()));
+  handle("videos", () => listVideos(database()));
+  handle("video", (id) => videoDetail(database(), String(id ?? ""), currentLocale()));
+  handle("import-reach", (payload) => {
+    const body = payload as { csv?: string; periodStart?: string; periodEnd?: string };
+    const imported = importReach(database(), body.csv ?? "", body.periodStart ?? "", body.periodEnd ?? "", currentLocale());
+    return { imported };
+  });
+  handle("reach", () => latestReach(database()));
   handle("seed-demo", async () => {
     const n = await seed(database());
     return { videos: n };
