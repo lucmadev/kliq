@@ -1,5 +1,8 @@
 import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "node:path";
+import { kvGet, kvSet, openDatabase, setDatabase } from "./db";
+import { registerIpc } from "./ipc";
+import { isLocale } from "../shared/i18n";
 
 const CSP = [
   "default-src 'self'",
@@ -69,6 +72,12 @@ export function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  const db = openDatabase(join(app.getPath("userData"), "monitor.db"));
+  setDatabase(db);
+  if (!isLocale(kvGet(db, "locale"))) {
+    kvSet(db, "locale", app.getLocale().toLowerCase().startsWith("es") ? "es" : "en");
+  }
+  registerIpc();
   hardenSession();
   createWindow();
   app.on("activate", () => {

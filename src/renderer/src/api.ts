@@ -1,3 +1,5 @@
+import type { Locale } from "../../shared/i18n";
+
 export type Kpi = {
   key: string;
   label: string;
@@ -28,7 +30,7 @@ export type VideoWeek = {
   watch_hours: number;
   subs: number;
   ratio_vs_median: number | null;
-  flag: "nuevo" | "outlier" | "subiendo" | "cayendo" | null;
+  flag: "new" | "outlier" | "rising" | "falling" | null;
 };
 
 export type Launch = {
@@ -101,36 +103,19 @@ export type VideoDetail = {
   reach: { period_start: string; period_end: string; impressions: number; ctr: number | null }[];
 };
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, init);
-  if (!res.ok) {
-    let msg = res.statusText;
-    try {
-      msg = (await res.json()).detail ?? msg;
-    } catch {
-      /* respuesta sin JSON */
-    }
-    throw new Error(msg);
-  }
-  return res.json();
-}
-
 export const api = {
-  status: () => req<Status>("/status"),
-  weeks: () => req<string[]>("/weeks"),
-  report: (week?: string) => req<Report>(`/report${week ? `?week=${week}` : ""}`),
-  summarize: (week: string) =>
-    req<{ summary: string }>(`/report/summary?week=${week}`, { method: "POST" }),
-  videos: () => req<VideoRow[]>("/videos"),
-  video: (id: string) => req<VideoDetail>(`/videos/${id}`),
-  retention: (id: string) => req<{ points: number }>(`/videos/${id}/retention`, { method: "POST" }),
-  sync: () => req<{ started: boolean; reason?: string }>("/sync", { method: "POST" }),
-  disconnect: () => req<{ ok: boolean }>("/auth/disconnect", { method: "POST" }),
-  importReach: (file: File, start: string, end: string) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("period_start", start);
-    fd.append("period_end", end);
-    return req<{ imported: number }>("/reach/import", { method: "POST", body: fd });
-  },
+  locale: () => window.kliq.locale(),
+  setLocale: (locale: Locale) => window.kliq.setLocale(locale),
+  status: () => window.kliq.status(),
+  weeks: () => window.kliq.weeks(),
+  report: (week?: string) => window.kliq.report(week),
+  seedDemo: () => window.kliq.seedDemo(),
+  summarize: (week: string) => window.kliq.summarize(week),
+  videos: () => window.kliq.videos(),
+  video: (id: string) => window.kliq.video(id),
+  retention: (id: string) => window.kliq.retention(id),
+  sync: () => window.kliq.sync(),
+  disconnect: () => window.kliq.disconnect(),
+  importReach: async (file: File, start: string, end: string) =>
+    window.kliq.importReach({ csv: await file.text(), periodStart: start, periodEnd: end }),
 };

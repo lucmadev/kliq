@@ -5,10 +5,12 @@ import {
 import { api, type Report, type Status } from "../api";
 import { Card, Delta, Empty, Flag, MiniMarkdown } from "../components/ui";
 import { day, num, range, secs, short } from "../format";
+import { useI18n } from "../i18n";
 
 type Props = { status: Status; onOpenVideo: (id: string) => void };
 
 export default function Weekly({ status, onOpenVideo }: Props) {
+  const { t, locale } = useI18n();
   const [weeks, setWeeks] = useState<string[]>([]);
   const [week, setWeek] = useState<string | undefined>();
   const [report, setReport] = useState<Report | null>(null);
@@ -29,8 +31,8 @@ export default function Weekly({ status, onOpenVideo }: Props) {
   }, [week]);
 
   if (error && !report) return <Empty>{error}</Empty>;
-  if (!weeks.length && !report) return <Empty>Todavía no hay semanas completas para comparar. Conectá el canal y sincronizá.</Empty>;
-  if (!report) return <div className="loading">Cargando semana…</div>;
+  if (!weeks.length && !report) return <Empty>{t("week.empty")}</Empty>;
+  if (!report) return <div className="loading">{t("week.loading")}</div>;
 
   const idx = weeks.indexOf(report.week.start);
   const summarize = async () => {
@@ -50,19 +52,22 @@ export default function Weekly({ status, onOpenVideo }: Props) {
       <div className="toolbar">
         <div className="week-nav">
           <button className="icon-btn" disabled={idx >= weeks.length - 1}
-            onClick={() => setWeek(weeks[idx + 1])} aria-label="Semana anterior">‹</button>
+            onClick={() => setWeek(weeks[idx + 1])} aria-label={t("week.previous")}>‹</button>
           <select value={report.week.start} onChange={(e) => setWeek(e.target.value)}>
             {weeks.map((w, i) => (
               <option key={w} value={w}>
-                {i === 0 ? "Última semana · " : ""}{range(w, addDays(w, 6))}
+                {i === 0 ? t("week.latest_prefix") : ""}{range(w, addDays(w, 6), locale)}
               </option>
             ))}
           </select>
           <button className="icon-btn" disabled={idx <= 0}
-            onClick={() => setWeek(weeks[idx - 1])} aria-label="Semana siguiente">›</button>
+            onClick={() => setWeek(weeks[idx - 1])} aria-label={t("week.next")}>›</button>
         </div>
         <span className="muted small">
-          vs {range(report.previous_week.start, report.previous_week.end)} · datos hasta {day(report.data_through)}
+          {t("week.vs", {
+            range: range(report.previous_week.start, report.previous_week.end, locale),
+            through: day(report.data_through, locale),
+          })}
         </span>
       </div>
 
@@ -70,58 +75,58 @@ export default function Weekly({ status, onOpenVideo }: Props) {
         {report.kpis.map((k) => (
           <div className="kpi" key={k.key}>
             <span className="kpi-label">{k.label}</span>
-            <span className="kpi-value">{k.unit === "secs" ? secs(k.current) : num(k.current)}</span>
+            <span className="kpi-value">{k.unit === "secs" ? secs(k.current) : num(k.current, locale)}</span>
             <span className="kpi-foot">
               <Delta value={k.delta_pct} />
-              <span className="muted">antes {k.unit === "secs" ? secs(k.previous) : num(k.previous)}</span>
+              <span className="muted">{t("col.before").toLowerCase()} {k.unit === "secs" ? secs(k.previous) : num(k.previous, locale)}</span>
             </span>
           </div>
         ))}
       </div>
 
       <div className="grid-2">
-        <Card title="Qué pasó esta semana" className="insights">
+        <Card title={t("week.what")} className="insights">
           {report.insights.length ? (
             <ul className="insight-list">
-              {report.insights.map((t, i) => <li key={i}>{t}</li>)}
+              {report.insights.map((line, i) => <li key={i}>{line}</li>)}
             </ul>
-          ) : <Empty>Semana tranquila: nada para destacar.</Empty>}
+          ) : <Empty>{t("week.quiet")}</Empty>}
           <div className="ai-block">
             <div className="ai-head">
-              <span className="ai-tag">Resumen IA</span>
+              <span className="ai-tag">{t("week.ai")}</span>
               {status.llm.enabled ? (
                 <button className="btn ghost small" onClick={summarize} disabled={summarizing}>
-                  {summarizing ? "Pensando…" : report.summary ? "Regenerar" : "Generar"}
+                  {summarizing ? t("week.thinking") : report.summary ? t("week.regenerate") : t("week.generate")}
                 </button>
               ) : (
-                <span className="muted small">configurá LLM_PROVIDER en el .env</span>
+                <span className="muted small">{t("week.ai_off")}</span>
               )}
             </div>
             {report.summary ? <MiniMarkdown text={report.summary} /> : (
-              <p className="muted small">Se genera solo cuando se completa una semana nueva.</p>
+              <p className="muted small">{t("week.ai_pending")}</p>
             )}
           </div>
         </Card>
 
-        <Card title="Vistas por día" aside={<span className="muted small">semana vs anterior</span>}>
+        <Card title={t("week.views_by_day")} aside={<span className="muted small">{t("week.vs_previous")}</span>}>
           <div className="chart">
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={report.daily} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--grid)" vertical={false} />
                 <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "var(--text-2)", fontSize: 12 }} />
-                <YAxis tickFormatter={short} tickLine={false} axisLine={false} width={44}
+                <YAxis tickFormatter={(v) => short(Number(v), locale)} tickLine={false} axisLine={false} width={44}
                   tick={{ fill: "var(--text-2)", fontSize: 12 }} />
                 <Tooltip
                   cursor={{ stroke: "var(--text-3)", strokeWidth: 1 }}
                   contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8 }}
                   labelStyle={{ color: "var(--text-1)" }}
                   itemStyle={{ color: "var(--text-1)" }}
-                  formatter={(v) => num(Number(v))}
+                  formatter={(v) => num(Number(v), locale)}
                 />
                 <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, color: "var(--text-2)" }} />
-                <Line name="Semana anterior" dataKey="previous" stroke="var(--prev)" strokeWidth={2}
+                <Line name={t("week.series_previous")} dataKey="previous" stroke="var(--prev)" strokeWidth={2}
                   strokeDasharray="4 4" dot={false} activeDot={{ r: 4 }} />
-                <Line name="Esta semana" dataKey="current" stroke="var(--series-1)" strokeWidth={2}
+                <Line name={t("week.series_current")} dataKey="current" stroke="var(--series-1)" strokeWidth={2}
                   dot={{ r: 3, strokeWidth: 0, fill: "var(--series-1)" }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -130,62 +135,71 @@ export default function Weekly({ status, onOpenVideo }: Props) {
       </div>
 
       <div className="grid-2">
-        <Card title="Fuentes de tráfico">
+        <Card title={t("week.traffic")}>
           <div className="traffic">
-            {report.traffic.filter((t) => t.current || t.previous).map((t) => (
-              <div className="traffic-row" key={t.source} title={`${t.label}: ${num(t.current)} vistas (antes ${num(t.previous)})`}>
-                <span className="traffic-label">{t.label}</span>
+            {report.traffic.filter((row) => row.current || row.previous).map((row) => (
+              <div className="traffic-row" key={row.source} title={t("week.traffic_tip", {
+                label: row.label,
+                current: num(row.current, locale),
+                previous: num(row.previous, locale),
+              })}>
+                <span className="traffic-label">{row.label}</span>
                 <span className="bar-track">
-                  <span className="bar" style={{ width: `${Math.max(t.share, 0.5)}%` }} />
+                  <span className="bar" style={{ width: `${Math.max(row.share, 0.5)}%` }} />
                 </span>
-                <span className="num">{t.share.toFixed(1).replace(".", ",")}%</span>
-                <span className="num">{num(t.current)}</span>
-                <Delta value={t.delta_pct} />
+                <span className="num">{num(row.share, locale)}%</span>
+                <span className="num">{num(row.current, locale)}</span>
+                <Delta value={row.delta_pct} />
               </div>
             ))}
           </div>
         </Card>
 
-        <Card title="Lanzamientos" aside={<span className="muted small">primeros 7 días vs tu mediana</span>}>
+        <Card title={t("week.launches")} aside={<span className="muted small">{t("week.launch_aside")}</span>}>
           {report.launches.length ? report.launches.map((l) => (
             <button className="launch" key={l.id} onClick={() => onOpenVideo(l.id)}>
               <span className="launch-title">{l.title}</span>
-              <span className="muted small">publicado {day(l.published_at)} · {l.days} {l.days === 1 ? "día" : "días"}</span>
+              <span className="muted small">{t("week.published", {
+                date: day(l.published_at, locale),
+                days: l.days,
+                unit: l.days === 1 ? t("week.day") : t("week.days"),
+              })}</span>
               <span className="launch-stats">
-                <strong>{num(l.views)}</strong>
-                <span className="muted"> vs {l.baseline != null ? num(Math.round(l.baseline)) : "—"}</span>
+                <strong>{num(l.views, locale)}</strong>
+                <span className="muted"> {t("week.vs_baseline", { baseline: l.baseline != null ? num(Math.round(l.baseline), locale) : "—" })}</span>
                 {l.ratio != null && (
-                  <span className={`ratio ${l.ratio >= 1 ? "up" : "down"}`}>{l.ratio.toFixed(2).replace(".", ",")}x</span>
+                  <span className={`ratio ${l.ratio >= 1 ? "up" : "down"}`}>{num(l.ratio, locale)}x</span>
                 )}
               </span>
             </button>
-          )) : <Empty>No publicaste en estas dos semanas.</Empty>}
+          )) : <Empty>{t("week.no_launches")}</Empty>}
 
-          <h3 className="sub">Búsquedas que te trajeron vistas</h3>
+          <h3 className="sub">{t("week.searches")}</h3>
           {report.search_terms.length ? (
             <div className="chips">
               {report.search_terms.slice(0, 16).map((s) => (
-                <span className={`chip ${s.is_new ? "chip-new" : ""}`} key={s.term} title={`${num(s.views)} vistas`}>
-                  {s.term} <span className="muted">{short(s.views)}</span>
+                <span className={`chip ${s.is_new ? "chip-new" : ""}`} key={s.term} title={t("week.search_tip", { count: num(s.views, locale) })}>
+                  {s.is_new && <span className="chip-kicker">{t("delta.new")} · </span>}
+                  {s.term} <span className="muted">{short(s.views, locale)}</span>
                 </span>
               ))}
             </div>
-          ) : <Empty>Sin datos de búsqueda para esta semana.</Empty>}
+          ) : <Empty>{t("week.no_searches")}</Empty>}
         </Card>
       </div>
 
-      <Card title="Videos de la semana" aside={<span className="muted small">mediana {num(report.median_week_views)} vistas/video</span>}>
+      <Card title={t("week.videos")} aside={<span className="muted small">{t("week.median_aside", { count: num(report.median_week_views, locale) })}</span>}>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Video</th>
-                <th className="r">Vistas</th>
-                <th className="r">Antes</th>
-                <th className="r">Cambio</th>
-                <th className="r">vs mediana</th>
-                <th className="r">Horas</th>
-                <th className="r">Subs</th>
+                <th>{t("col.video")}</th>
+                <th className="r">{t("col.views")}</th>
+                <th className="r">{t("col.before")}</th>
+                <th className="r">{t("col.change")}</th>
+                <th className="r">{t("col.vs_median")}</th>
+                <th className="r">{t("col.hours")}</th>
+                <th className="r">{t("col.subs")}</th>
               </tr>
             </thead>
             <tbody>
@@ -194,12 +208,12 @@ export default function Weekly({ status, onOpenVideo }: Props) {
                   <td className="title-cell">
                     <span className="title-text">{v.title}</span> <Flag flag={v.flag} />
                   </td>
-                  <td className="r num">{num(v.views)}</td>
-                  <td className="r num muted">{num(v.previous)}</td>
+                  <td className="r num">{num(v.views, locale)}</td>
+                  <td className="r num muted">{num(v.previous, locale)}</td>
                   <td className="r"><Delta value={v.delta_pct} /></td>
-                  <td className="r num">{v.ratio_vs_median != null ? `${v.ratio_vs_median.toFixed(1).replace(".", ",")}x` : "—"}</td>
-                  <td className="r num">{num(v.watch_hours)}</td>
-                  <td className="r num">{num(v.subs)}</td>
+                  <td className="r num">{v.ratio_vs_median != null ? `${num(v.ratio_vs_median, locale)}x` : "—"}</td>
+                  <td className="r num">{num(v.watch_hours, locale)}</td>
+                  <td className="r num">{num(v.subs, locale)}</td>
                 </tr>
               ))}
             </tbody>
@@ -207,13 +221,16 @@ export default function Weekly({ status, onOpenVideo }: Props) {
         </div>
       </Card>
 
-      <Card title="Impresiones y CTR"
-        aside={report.reach ? <span className="muted small">{range(report.reach.period_start, report.reach.period_end)} · mediana {report.reach.median_ctr?.toString().replace(".", ",")}%</span> : null}>
+      <Card title={t("week.reach")}
+        aside={report.reach ? <span className="muted small">{t("week.reach_aside", {
+          range: range(report.reach.period_start, report.reach.period_end, locale),
+          ctr: report.reach.median_ctr != null ? num(report.reach.median_ctr, locale) : "—",
+        })}</span> : null}>
         {report.reach ? (
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Video</th><th className="r">Impresiones</th><th className="r">CTR</th></tr>
+                <tr><th>{t("col.video")}</th><th className="r">{t("col.impressions")}</th><th className="r">{t("col.ctr")}</th></tr>
               </thead>
               <tbody>
                 {report.reach.rows.slice(0, 10).map((r) => {
@@ -221,9 +238,9 @@ export default function Weekly({ status, onOpenVideo }: Props) {
                   return (
                     <tr key={r.video_id} onClick={() => onOpenVideo(r.video_id)} className="clickable">
                       <td className="title-cell"><span className="title-text">{r.title}</span>
-                        {low && <span className="flag flag-cayendo">CTR bajo</span>}</td>
-                      <td className="r num">{num(r.impressions)}</td>
-                      <td className="r num">{r.ctr != null ? `${r.ctr.toFixed(2).replace(".", ",")}%` : "—"}</td>
+                        {low && <span className="flag flag-falling">{t("flag.low_ctr")}</span>}</td>
+                      <td className="r num">{num(r.impressions, locale)}</td>
+                      <td className="r num">{r.ctr != null ? `${num(r.ctr, locale)}%` : "—"}</td>
                     </tr>
                   );
                 })}
@@ -231,7 +248,7 @@ export default function Weekly({ status, onOpenVideo }: Props) {
             </table>
           </div>
         ) : (
-          <Empty>La API no da impresiones ni CTR. Importá el CSV de YouTube Studio desde la pestaña Conexión.</Empty>
+          <Empty>{t("week.no_reach")}</Empty>
         )}
       </Card>
     </div>

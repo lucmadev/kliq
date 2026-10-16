@@ -2,8 +2,14 @@ import { useState, type FormEvent } from "react";
 import { api, type Status } from "../api";
 import { Card } from "../components/ui";
 import { ago, day, num } from "../format";
+import { useI18n } from "../i18n";
 
-export default function Connection({ status, refresh }: { status: Status; refresh: () => void }) {
+export default function Connection({ status, refresh, notify }: {
+  status: Status;
+  refresh: () => void;
+  notify: (message: string) => void;
+}) {
+  const { t, locale } = useI18n();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -11,7 +17,9 @@ export default function Connection({ status, refresh }: { status: Status; refres
     setBusy(true);
     try {
       const r = await api.sync();
-      setMsg(r.started ? "Sincronizando… la primera vez puede tardar un par de minutos." : r.reason ?? "");
+      const text = r.started ? t("conn.sync_started") : r.reason ?? "";
+      setMsg(text);
+      if (r.started) notify(text);
       refresh();
     } catch (e) {
       setMsg((e as Error).message);
@@ -21,52 +29,75 @@ export default function Connection({ status, refresh }: { status: Status; refres
   };
 
   const disconnect = async () => {
-    if (!confirm("¿Desconectar la cuenta de Google? Los datos guardados se mantienen.")) return;
+    if (!confirm(t("conn.disconnect_confirm"))) return;
     await api.disconnect();
     refresh();
   };
 
   return (
     <div className="page narrow">
-      <Card title="Cuenta de YouTube">
+      <Card title={t("conn.title")}>
         {!status.configured ? (
           <div className="setup">
-            <p>Falta configurar el cliente OAuth de Google. Completá <code>GOOGLE_CLIENT_ID</code> y{" "}
-              <code>GOOGLE_CLIENT_SECRET</code> en el <code>.env</code> y reiniciá la API. Los pasos están en el README.</p>
+            <p>{t("conn.missing_client")}</p>
           </div>
         ) : status.connected ? (
           <div className="conn-row">
             <div>
-              <strong>{status.channel?.title ?? "Canal conectado"}</strong>
+              <strong>{status.channel?.title ?? t("app.brand_fallback")}</strong>
               <div className="muted small">
-                {status.channel && <>{num(status.channel.subscribers)} suscriptores · {num(status.videos)} videos · </>}
-                último sync {ago(status.last_sync?.finished_at ?? status.last_sync?.started_at)}
+                {status.channel && (
+                  <>
+                    {t("conn.subscribers_videos", {
+                      subs: num(status.channel.subscribers, locale),
+                      videos: num(status.videos, locale),
+                    })}
+                  </>
+                )}
+                {t("conn.last_sync_line", { when: ago(status.last_sync?.finished_at ?? status.last_sync?.started_at, locale) })}
               </div>
             </div>
             <div className="btn-row">
               <button className="btn" onClick={sync} disabled={busy || status.syncing}>
-                {status.syncing ? "Sincronizando…" : "Sincronizar ahora"}
+                {status.syncing ? t("conn.syncing") : t("conn.sync")}
               </button>
-              <button className="btn ghost" onClick={disconnect}>Desconectar</button>
+              <button className="btn ghost" onClick={() => void disconnect()}>{t("conn.disconnect")}</button>
             </div>
           </div>
         ) : (
           <div className="conn-row">
-            <p className="muted">Solo lectura: pide <code>youtube.readonly</code> y <code>yt-analytics.readonly</code>.
-              Nadie más que vos ve los datos; quedan en tu SQLite.</p>
-            <a className="btn" href="/api/auth/login">Conectar con Google</a>
+            <p className="muted">{t("conn.readonly")}</p>
+            <button className="btn" onClick={() => notify(t("conn.connect"))}>{t("conn.connect")}</button>
           </div>
         )}
         {msg && <p className="notice">{msg}</p>}
 
         <dl className="facts">
-          <div><dt>Datos</dt><dd>{status.data_range ? `${day(status.data_range.from)} → ${day(status.data_range.to)}` : "sin datos"}{status.demo && " (demo)"}</dd></div>
-          <div><dt>Último sync</dt><dd>
-            {status.last_sync ? <>
-              <span className={`dot ${status.last_sync.status}`} /> {status.last_sync.status} · {status.last_sync.detail ?? ""}
-            </> : "nunca"}</dd></div>
-          <div><dt>Próximo sync</dt><dd>{status.next_sync ? new Date(status.next_sync).toLocaleString("es-AR") : "scheduler apagado"}</dd></div>
-          <div><dt>Resumen IA</dt><dd>{status.llm.enabled ? status.llm.provider : "desactivado"}</dd></div>
+          <div>
+            <dt>{t("conn.facts_data")}</dt>
+            <dd>
+              {status.data_range ? `${day(status.data_range.from, locale)} → ${day(status.data_range.to, locale)}` : t("conn.no_data")}
+              {status.demo && ` (${t("app.demo")})`}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("conn.facts_last")}</dt>
+            <dd>
+              {status.last_sync ? (
+                <>
+                  <span className={`dot ${status.last_sync.status}`} /> {status.last_sync.status} · {status.last_sync.detail ?? ""}
+                </>
+              ) : t("conn.never")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("conn.facts_next")}</dt>
+            <dd>{status.next_sync ? new Date(status.next_sync).toLocaleString(locale === "es" ? "es-AR" : "en-US") : t("conn.scheduler_off")}</dd>
+          </div>
+          <div>
+            <dt>{t("conn.facts_ai")}</dt>
+            <dd>{status.llm.enabled ? status.llm.provider : t("conn.ai_off")}</dd>
+          </div>
         </dl>
       </Card>
 
@@ -76,6 +107,7 @@ export default function Connection({ status, refresh }: { status: Status; refres
 }
 
 function CsvImport({ onDone }: { onDone: () => void }) {
+  const { t } = useI18n();
   const today = new Date();
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   const [start, setStart] = useState(iso(new Date(today.getTime() - 30 * 864e5)));
@@ -88,7 +120,7 @@ function CsvImport({ onDone }: { onDone: () => void }) {
     if (!file) return;
     try {
       const r = await api.importReach(file, start, end);
-      setMsg(`Listo: ${r.imported} videos con impresiones y CTR.`);
+      setMsg(t("conn.imported", { count: r.imported }));
       onDone();
     } catch (err) {
       setMsg((err as Error).message);
@@ -96,17 +128,13 @@ function CsvImport({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Card title="Impresiones y CTR (CSV de Studio)">
-      <p className="muted small">
-        La API no expone impresiones ni CTR. En YouTube Studio → Estadísticas → Contenido → <em>Ver más</em>,
-        elegí el período, sumá las columnas “Impresiones” y “Porcentaje de clics de las impresiones”, y exportá
-        como CSV. Subí el archivo <code>Datos de la tabla.csv</code> del zip.
-      </p>
-      <form className="csv-form" onSubmit={submit}>
-        <label>Desde <input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-        <label>Hasta <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+    <Card title={t("conn.csv_title")}>
+      <p className="muted small">{t("conn.csv_help")}</p>
+      <form className="csv-form" onSubmit={(e) => void submit(e)}>
+        <label>{t("conn.from")} <input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+        <label>{t("conn.to")} <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
         <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        <button className="btn" disabled={!file}>Importar</button>
+        <button className="btn" disabled={!file}>{t("conn.import")}</button>
       </form>
       {msg && <p className="notice">{msg}</p>}
     </Card>

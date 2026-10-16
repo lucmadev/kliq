@@ -1,15 +1,20 @@
-const nf = new Intl.NumberFormat("es-AR");
-const dec1 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
+import { intlTag, translate, type Locale, type MessageKey } from "../../shared/i18n";
 
-export const num = (n: number | null | undefined) => (n == null ? "—" : nf.format(n));
-// Formato compacto propio: ICU es-AR mezcla "k" y "K" según el rango
-export const short = (n: number | null | undefined) => {
+export function num(n: number | null | undefined, locale: Locale) {
   if (n == null) return "—";
-  const a = Math.abs(n);
-  if (a >= 1e6) return `${dec1.format(n / 1e6)} M`;
-  if (a >= 1e3) return `${dec1.format(n / 1e3)} K`;
-  return nf.format(n);
-};
+  return new Intl.NumberFormat(intlTag(locale)).format(n);
+}
+
+export function short(n: number | null | undefined, locale: Locale) {
+  if (n == null) return "—";
+  const tag = intlTag(locale);
+  const abs = Math.abs(n);
+  const dec = new Intl.NumberFormat(tag, { maximumFractionDigits: 1 });
+  const fmt = new Intl.NumberFormat(tag);
+  if (abs >= 1e6) return `${dec.format(n / 1e6)} M`;
+  if (abs >= 1e3) return `${dec.format(n / 1e3)} K`;
+  return fmt.format(n);
+}
 
 export function secs(s: number | null | undefined) {
   if (s == null) return "—";
@@ -18,28 +23,32 @@ export function secs(s: number | null | undefined) {
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}:${String(r).padStart(2, "0")}`;
 }
 
-export function pct(p: number | null | undefined, digits = 1) {
+export function pct(p: number | null | undefined, locale: Locale, digits = 1) {
   if (p == null) return "—";
   const sign = p > 0 ? "+" : p < 0 ? "−" : "";
-  return `${sign}${Math.abs(p).toFixed(digits).replace(".", ",")}%`;
+  const body = new Intl.NumberFormat(intlTag(locale), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(Math.abs(p));
+  return `${sign}${body}%`;
 }
 
-const dfmt = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" });
-export function day(iso: string | null | undefined) {
+export function day(iso: string | null | undefined, locale: Locale) {
   if (!iso) return "—";
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  return dfmt.format(new Date(y, m - 1, d));
+  return new Intl.DateTimeFormat(intlTag(locale), { day: "numeric", month: "short" }).format(new Date(y, m - 1, d));
 }
 
-export function range(a: string, b: string) {
-  return `${day(a)} – ${day(b)}`;
+export function range(a: string, b: string, locale: Locale) {
+  return `${day(a, locale)} – ${day(b, locale)}`;
 }
 
-export function ago(iso: string | null | undefined) {
-  if (!iso) return "nunca";
+export function ago(iso: string | null | undefined, locale: Locale) {
+  const t = (key: MessageKey, vars?: Record<string, string | number>) => translate(locale, key, vars);
+  if (!iso) return t("ago.never");
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return "recién";
-  if (diff < 3600) return `hace ${Math.round(diff / 60)} min`;
-  if (diff < 86400) return `hace ${Math.round(diff / 3600)} h`;
-  return `hace ${Math.round(diff / 86400)} días`;
+  if (diff < 60) return t("ago.just");
+  if (diff < 3600) return t("ago.minutes", { n: Math.round(diff / 60) });
+  if (diff < 86400) return t("ago.hours", { n: Math.round(diff / 3600) });
+  return t("ago.days", { n: Math.round(diff / 86400) });
 }

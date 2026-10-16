@@ -1,6 +1,4 @@
-export interface KliqBridge {
-  version: string;
-}
+import type { KliqBridge } from "./index";
 
 declare global {
   interface Window {
