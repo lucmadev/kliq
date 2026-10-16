@@ -2,7 +2,7 @@
 import type Database from "better-sqlite3";
 import { addDays, lastCompleteWeekStart, parse, weekStartOf } from "./dates";
 import { kvGet, nowIso } from "./db";
-import { formatCount, trafficLabel, translate, type Locale, type MessageKey } from "../shared/i18n";
+import { formatCount, intlTag, trafficLabel, translate, type Locale, type MessageKey } from "../shared/i18n";
 
 export type Kpi = {
   key: string;
@@ -119,6 +119,45 @@ export function dataRange(db: Database.Database): [string, string] | null {
   return [parse(r.a), parse(r.b)];
 }
 
+export function isCalendarWeek(start: string, end: string): boolean {
+  const s = parse(start);
+  return weekStartOf(s) === s && addDays(s, 6) === parse(end);
+}
+
+function monthEnd(start: string): string {
+  const [y, m] = parse(start).split("-").map(Number);
+  const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  return addDays(next, -1);
+}
+
+function isCalendarMonth(start: string, end: string): boolean {
+  const s = parse(start);
+  return s.endsWith("-01") && parse(end) === monthEnd(s);
+}
+
+function isCalendarYear(start: string, end: string): boolean {
+  const s = parse(start);
+  const e = parse(end);
+  return s.endsWith("-01-01") && e.endsWith("-12-31") && s.slice(0, 4) === e.slice(0, 4);
+}
+
+/** Previous calendar month or year, otherwise the same number of days immediately before. */
+export function previousPeriod(start: string, end: string): { start: string; end: string } {
+  const s = parse(start);
+  const e = parse(end);
+  if (isCalendarMonth(s, e)) {
+    const prevEnd = addDays(s, -1);
+    return { start: `${prevEnd.slice(0, 8)}01`, end: prevEnd };
+  }
+  if (isCalendarYear(s, e)) {
+    const y = Number(s.slice(0, 4)) - 1;
+    return { start: `${y}-01-01`, end: `${y}-12-31` };
+  }
+  const span = daysBetween(s, e);
+  const prevEnd = addDays(s, -1);
+  return { start: addDays(prevEnd, -span), end: prevEnd };
+}
+
 export function availableWeeks(db: Database.Database): string[] {
   const rng = dataRange(db);
   if (!rng) return [];
@@ -197,11 +236,20 @@ type VideoMeta = {
 export function buildReport(db: Database.Database, weekStart?: string | null, locale: Locale = "en"): Report | null {
   const rng = dataRange(db);
   if (!rng) return null;
+  const ws = weekStartOf(weekStart ? parse(weekStart) : lastCompleteWeekStart(rng[1]));
+  return buildRange(db, ws, addDays(ws, 6), locale);
+}
+
+export function buildRange(db: Database.Database, start: string, end: string, locale: Locale = "en"): Report | null {
+  const rng = dataRange(db);
+  if (!rng) return null;
   const [firstDate, lastDate] = rng;
-  const ws = weekStartOf(weekStart ? parse(weekStart) : lastCompleteWeekStart(lastDate));
-  const we = addDays(ws, 6);
-  const ps = addDays(ws, -7);
-  const pe = addDays(ws, -1);
+  const ws = parse(start);
+  const we = parse(end);
+  if (ws > we) return null;
+  const earlier = previousPeriod(ws, we);
+  const ps = earlier.start;
+  const pe = earlier.end;
 
   const cur = channelTotals(db, ws, we);
   const prev = channelTotals(db, ps, pe);
@@ -228,17 +276,43 @@ export function buildReport(db: Database.Database, weekStart?: string | null, lo
       .all(s, e) as { date: string; views: number }[];
     return new Map(rows.map((r) => [r.date, r]));
   };
-  const dc = dailyMap(ws, we);
-  const dp = dailyMap(ps, pe);
+  const weekly = isCalendarWeek(ws, we);
+  const bucket = daysBetween(ws, we) + 1 > 62 ? 7 : 1;
+  const slicePoints = (s: string, e: string) => {
+    const map = dailyMap(s, e);
+    const out: { label: string; date: string; views: number | null }[] = [];
+    let cursor = s;
+    let index = 0;
+    while (cursor <= e) {
+      const clipped = addDays(cursor, bucket - 1) > e ? e : addDays(cursor, bucket - 1);
+      let views = 0;
+      let any = false;
+      for (let d = cursor; d <= clipped; d = addDays(d, 1)) {
+        const row = map.get(d);
+        if (row) {
+          views += row.views;
+          any = true;
+        }
+      }
+      out.push({
+        label: weekly ? translate(locale, `weekday.${index}` as MessageKey) : cursor.slice(5),
+        date: cursor,
+        views: any ? views : null,
+      });
+      cursor = addDays(clipped, 1);
+      index += 1;
+    }
+    return out;
+  };
+  const curPts = slicePoints(ws, we);
+  const prevPts = slicePoints(ps, pe);
   const daily = [];
-  for (let i = 0; i < 7; i++) {
-    const dCur = addDays(ws, i);
-    const dPrev = addDays(ps, i);
+  for (let i = 0; i < Math.max(curPts.length, prevPts.length); i++) {
     daily.push({
-      day: translate(locale, `weekday.${i}` as MessageKey),
-      date: dCur,
-      current: dc.get(dCur)?.views ?? null,
-      previous: dp.get(dPrev)?.views ?? null,
+      day: curPts[i]?.label ?? prevPts[i]?.label ?? "",
+      date: curPts[i]?.date ?? prevPts[i]?.date ?? ws,
+      current: curPts[i]?.views ?? null,
+      previous: prevPts[i]?.views ?? null,
     });
   }
 
@@ -322,20 +396,23 @@ export function buildReport(db: Database.Database, weekStart?: string | null, lo
     });
   });
 
-  const stCur = db
-    .prepare("SELECT term, views FROM search_terms WHERE week_start=? ORDER BY views DESC")
-    .all(ws) as { term: string; views: number }[];
-  const stPrevRows = db.prepare("SELECT term, views FROM search_terms WHERE week_start=?").all(ps) as {
-    term: string;
-    views: number;
-  }[];
-  const stPrev = new Map(stPrevRows.map((r) => [r.term, r.views]));
-  const searchTerms = stCur.map((r) => ({
-    term: r.term,
-    views: r.views,
-    previous: stPrev.get(r.term) ?? null,
-    is_new: !stPrev.has(r.term),
-  }));
+  let searchTerms: Report["search_terms"] = [];
+  if (weekly) {
+    const stCur = db
+      .prepare("SELECT term, views FROM search_terms WHERE week_start=? ORDER BY views DESC")
+      .all(ws) as { term: string; views: number }[];
+    const stPrevRows = db.prepare("SELECT term, views FROM search_terms WHERE week_start=?").all(ps) as {
+      term: string;
+      views: number;
+    }[];
+    const stPrev = new Map(stPrevRows.map((r) => [r.term, r.views]));
+    searchTerms = stCur.map((r) => ({
+      term: r.term,
+      views: r.views,
+      previous: stPrev.get(r.term) ?? null,
+      is_new: !stPrev.has(r.term),
+    }));
+  }
 
   const reach = latestReach(db, meta);
   const report: Report = {
@@ -405,8 +482,30 @@ function sp(locale: Locale, n: number): string {
   return (n > 0 ? "+" : "") + fmt(locale, n, 1) + "%";
 }
 
+function shortRange(locale: Locale, start: string, end: string): string {
+  const fmt = new Intl.DateTimeFormat(intlTag(locale), { day: "numeric", month: "short" });
+  const one = (iso: string) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return fmt.format(new Date(y, (m ?? 1) - 1, d));
+  };
+  return `${one(start)} – ${one(end)}`;
+}
+
+function periodKind(start: string, end: string): "week" | "month" | "year" | "custom" {
+  if (isCalendarWeek(start, end)) return "week";
+  if (isCalendarMonth(start, end)) return "month";
+  if (isCalendarYear(start, end)) return "year";
+  return "custom";
+}
+
 export function buildInsights(r: Report, locale: Locale = "en"): string[] {
   const out: string[] = [];
+  const kind = periodKind(r.week.start, r.week.end);
+  const currentRange = shortRange(locale, r.week.start, r.week.end);
+  const previousRange = shortRange(locale, r.previous_week.start, r.previous_week.end);
+  const against = kind === "custom" ? previousRange : translate(locale, `period.against.${kind}` as MessageKey);
+  const span = kind === "custom" ? currentRange : translate(locale, `period.span.${kind}` as MessageKey);
+  const medianLabel = translate(locale, `period.median.${kind}` as MessageKey);
   const k = new Map(r.kpis.map((x) => [x.key, x]));
   const views = k.get("views")!;
   if (views.delta_pct != null) {
@@ -415,6 +514,7 @@ export function buildInsights(r: Report, locale: Locale = "en"): string[] {
         pct: fmt(locale, Math.abs(views.delta_pct), 1),
         previous: fmt(locale, views.previous),
         current: fmt(locale, views.current),
+        against,
       }),
     );
   }
@@ -434,13 +534,13 @@ export function buildInsights(r: Report, locale: Locale = "en"): string[] {
   }
 
   for (const vid of r.videos.filter((x) => x.flag === "outlier").slice(0, 2)) {
-    out.push(translate(locale, "insight.outlier", { title: vid.title, ratio: fmt(locale, vid.ratio_vs_median ?? 0, 1) }));
+    out.push(translate(locale, "insight.outlier", { title: vid.title, ratio: fmt(locale, vid.ratio_vs_median ?? 0, 1), median: medianLabel }));
   }
   for (const vid of r.videos.filter((x) => x.flag === "rising").slice(0, 2)) {
-    out.push(translate(locale, "insight.rising", { title: vid.title, pct: sp(locale, vid.delta_pct ?? 0) }));
+    out.push(translate(locale, "insight.rising", { title: vid.title, pct: sp(locale, vid.delta_pct ?? 0), span }));
   }
   for (const vid of r.videos.filter((x) => x.flag === "falling").slice(0, 1)) {
-    out.push(translate(locale, "insight.falling", { title: vid.title, pct: sp(locale, vid.delta_pct ?? 0) }));
+    out.push(translate(locale, "insight.falling", { title: vid.title, pct: sp(locale, vid.delta_pct ?? 0), against }));
   }
 
   for (const l of r.launches) {
@@ -497,7 +597,7 @@ export function buildInsights(r: Report, locale: Locale = "en"): string[] {
     }
   }
 
-  if (!r.complete) out.push(translate(locale, "insight.incomplete"));
+  if (!r.complete) out.push(translate(locale, "insight.incomplete", { span }));
   return out;
 }
 

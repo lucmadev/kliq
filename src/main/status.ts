@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { isDemo, type Report, availableWeeks, buildReport, dataRange } from "./report";
+import { isCalendarWeek, isDemo, type Report, availableWeeks, buildRange, buildReport, dataRange } from "./report";
 import { AppError } from "./errors";
 import { translate, type Locale } from "../shared/i18n";
 
@@ -65,12 +65,23 @@ export function getWeeks(db: Database.Database): string[] {
   return availableWeeks(db);
 }
 
-export function getReport(db: Database.Database, week?: string | null, locale: Locale = "en"): Report {
-  const report = buildReport(db, week, locale);
-  if (!report) throw new AppError(translate(locale, "error.no_data"), 404);
+function withSavedSummary(db: Database.Database, report: Report): Report {
+  if (!isCalendarWeek(report.week.start, report.week.end)) return report;
   const saved = db.prepare("SELECT summary FROM reports WHERE week_start=?").get(report.week.start) as
     | { summary: string | null }
     | undefined;
   report.summary = saved?.summary ?? null;
   return report;
+}
+
+export function getReport(db: Database.Database, week?: string | null, locale: Locale = "en"): Report {
+  const report = buildReport(db, week, locale);
+  if (!report) throw new AppError(translate(locale, "error.no_data"), 404);
+  return withSavedSummary(db, report);
+}
+
+export function getRangeReport(db: Database.Database, start: string, end: string, locale: Locale = "en"): Report {
+  const report = buildRange(db, start, end, locale);
+  if (!report) throw new AppError(translate(locale, "error.no_data"), 404);
+  return withSavedSummary(db, report);
 }

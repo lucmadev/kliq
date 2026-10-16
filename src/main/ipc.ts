@@ -11,13 +11,13 @@ import {
 } from "./accounts";
 import { database, kvGet, kvSet, peekDatabase } from "./db";
 import { AppError } from "./errors";
-import { getReport, getStatus, getWeeks, type Runtime } from "./status";
+import { getRangeReport, getReport, getStatus, getWeeks, type Runtime } from "./status";
 import { seed } from "./seed";
 import { isLocale, translate, type Locale } from "../shared/i18n";
 import { isTheme, type ThemeChoice } from "../shared/theme";
 import { listVideos, videoDetail } from "./videos";
 import { importReach } from "./csv";
-import { buildReport, latestReach, saveReport } from "./report";
+import { buildRange, buildReport, isCalendarWeek, latestReach, saveReport } from "./report";
 import { clientView, disconnectAccount, isConfigured, isConnected, saveClient } from "./auth";
 import { startLogin } from "./oauth";
 import { fetchRetention, isRunning, runSync } from "./youtube";
@@ -107,7 +107,13 @@ export function registerIpc(): void {
     return { ...getStatus(db, runtime()), accounts: listAccountViews() };
   });
   handle("weeks", () => getWeeks(channelDb()));
-  handle("report", (week) => getReport(channelDb(), typeof week === "string" ? week : null, currentLocale()));
+  handle("report", (payload) => {
+    const locale = currentLocale();
+    const range = rangeOf(payload);
+    if (range) return getRangeReport(channelDb(), range.start, range.end, locale);
+    const week = typeof payload === "string" ? payload : null;
+    return getReport(channelDb(), week, locale);
+  });
   handle("videos", () => listVideos(channelDb()));
   handle("video", (id) => videoDetail(channelDb(), String(id ?? ""), currentLocale()));
   handle("import-reach", (payload) => {
@@ -179,13 +185,26 @@ export function registerIpc(): void {
     clipboard.writeText(mcpConfigText(prefs(), currentLocale()));
     return { copied: true };
   });
-  handle("summarize", async (week) => {
+  handle("summarize", async (payload) => {
     const locale = currentLocale();
     const db = channelDb();
-    const report = buildReport(db, typeof week === "string" ? week : null, locale);
+    const range = rangeOf(payload);
+    const week = typeof payload === "string" ? payload : null;
+    const report = range
+      ? buildRange(db, range.start, range.end, locale)
+      : buildReport(db, week, locale);
     if (!report) throw new AppError(translate(locale, "error.no_data"), 404);
     const summary = await summarizeReport(prefs(), report, locale);
-    saveReport(db, report, summary);
+    if (isCalendarWeek(report.week.start, report.week.end)) saveReport(db, report, summary);
     return { summary };
   });
+}
+
+function rangeOf(payload: unknown): { start: string; end: string } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const body = payload as { start?: unknown; end?: unknown };
+  if (typeof body.start !== "string" || typeof body.end !== "string") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(body.start) || !/^\d{4}-\d{2}-\d{2}$/.test(body.end)) return null;
+  if (body.start > body.end) return null;
+  return { start: body.start, end: body.end };
 }

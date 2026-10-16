@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { lastCompleteWeekStart } from "../src/main/dates";
 import { openDatabase } from "../src/main/db";
-import { buildReport, availableWeeks } from "../src/main/report";
+import { buildRange, buildReport, availableWeeks, previousPeriod } from "../src/main/report";
 import { seed } from "../src/main/seed";
 import { getReport, getStatus } from "../src/main/status";
 
@@ -58,6 +58,12 @@ describe("demo report", () => {
 
     const older = buildReport(db, weeks[3]);
     expect(older?.week.start).toBe(weeks[3]);
+
+    const month = buildRange(db, "2026-09-01", "2026-09-30");
+    expect(month?.daily.length).toBeGreaterThan(7);
+    expect(month?.search_terms).toEqual([]);
+    expect(previousPeriod("2026-09-01", "2026-09-30")).toEqual({ start: "2026-08-01", end: "2026-08-31" });
+    expect(previousPeriod("2026-01-01", "2026-12-31")).toEqual({ start: "2025-01-01", end: "2025-12-31" });
     db.close();
   });
 });

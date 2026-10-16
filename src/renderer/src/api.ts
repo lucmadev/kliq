@@ -143,9 +143,10 @@ export const api = {
   setTheme: (theme: ThemeChoice) => window.kliq.setTheme(theme),
   status: () => window.kliq.status(),
   weeks: () => window.kliq.weeks(),
-  report: (week?: string) => window.kliq.report(week),
+  report: (payload?: string | { start: string; end: string }) => window.kliq.report(payload) as Promise<Report>,
   seedDemo: () => window.kliq.seedDemo(),
-  summarize: (week: string) => window.kliq.summarize(week),
+  summarize: (payload: string | { start: string; end: string }) =>
+    window.kliq.summarize(payload) as Promise<{ summary: string }>,
   videos: () => window.kliq.videos(),
   video: (id: string) => window.kliq.video(id),
   retention: (id: string) => window.kliq.retention(id),
