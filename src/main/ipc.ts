@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { clipboard, ipcMain } from "electron";
 import { database, kvGet, kvSet } from "./db";
 import { AppError } from "./errors";
 import { getReport, getStatus, getWeeks, type Runtime } from "./status";
@@ -13,6 +13,7 @@ import { fetchRetention, isRunning, runSync } from "./youtube";
 import { clearLlmKey, llmReady, saveLlmKey, settingsView, summarizeReport, updateSettings } from "./llm";
 import { loadSettings } from "./settings";
 import { nextSyncIso, rescheduleDailySync } from "./schedule";
+import { configureMcp, mcpConfigText, mcpView, rotateMcpToken } from "./mcp";
 
 export function runtime(): Runtime {
   const settings = loadSettings(database());
@@ -98,6 +99,13 @@ export function registerIpc(): void {
   });
   handle("save-llm-key", (key) => saveLlmKey(String(key ?? ""), currentLocale()));
   handle("clear-llm-key", () => clearLlmKey(currentLocale()));
+  handle("mcp", () => mcpView(database()));
+  handle("save-mcp", (payload) => configureMcp(database(), payload, currentLocale()));
+  handle("rotate-mcp", () => rotateMcpToken(database(), currentLocale()));
+  handle("copy-mcp", () => {
+    clipboard.writeText(mcpConfigText(database(), currentLocale()));
+    return { copied: true };
+  });
   handle("summarize", async (week) => {
     const locale = currentLocale();
     const report = buildReport(database(), typeof week === "string" ? week : null, locale);

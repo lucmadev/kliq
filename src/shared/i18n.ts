@@ -224,6 +224,7 @@ const en = {
   "mcp.stopped": "Stopped",
   "mcp.busy": "That port is already in use.",
   "mcp.no_keychain": "The system keychain is unavailable, so the token cannot be stored safely.",
+  "mcp.no_token": "Rotate the token before copying the config.",
 
   "ago.just": "just now",
   "ago.minutes": "{n} min ago",
@@ -478,6 +479,7 @@ const es: { [K in keyof typeof en]: string } = {
   "mcp.stopped": "Detenido",
   "mcp.busy": "Ese puerto ya está en uso.",
   "mcp.no_keychain": "El llavero del sistema no está disponible, así que el token no se puede guardar de forma segura.",
+  "mcp.no_token": "Rotá el token antes de copiar la config.",
 
   "ago.just": "recién",
   "ago.minutes": "hace {n} min",

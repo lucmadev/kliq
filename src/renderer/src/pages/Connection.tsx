@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, type SettingsView, type Status } from "../api";
+import { api, type McpView, type SettingsView, type Status } from "../api";
 import { Card } from "../components/ui";
 import { ago, day, num } from "../format";
 import { useI18n } from "../i18n";
@@ -142,6 +142,7 @@ export default function Connection({ status, refresh, notify }: {
 
       <ScheduleCard refresh={refresh} />
       <ModelCard refresh={refresh} />
+      <McpCard />
       <CsvImport onDone={refresh} />
     </div>
   );
@@ -267,6 +268,78 @@ function ModelCard({ refresh }: { refresh: () => void }) {
       <p className="muted small">
         {settings?.keySet ? t("byok.key_set", { hint: settings.keyHint ?? "" }) : t("byok.key_missing")}
       </p>
+      {msg && <p className="notice">{msg}</p>}
+    </Card>
+  );
+}
+
+function McpCard() {
+  const { t } = useI18n();
+  const [view, setView] = useState<McpView | null>(null);
+  const [enabled, setEnabled] = useState(false);
+  const [port, setPort] = useState(47321);
+  const [token, setToken] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.mcp().then((next) => {
+      setView(next);
+      setEnabled(next.enabled);
+      setPort(next.port);
+    }).catch(() => undefined);
+  }, []);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      const saved = await api.saveMcp({ enabled, port });
+      setView(saved.view);
+      setToken(saved.token ?? null);
+      setMsg(saved.view.running ? t("mcp.running", { url: saved.view.url ?? "" }) : t("mcp.stopped"));
+    } catch (err) {
+      setMsg((err as Error).message);
+    }
+  };
+
+  const rotate = async () => {
+    try {
+      const saved = await api.rotateMcp();
+      setToken(saved.token);
+      setView(saved.view);
+      setMsg(t("mcp.token_once"));
+    } catch (err) {
+      setMsg((err as Error).message);
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await api.copyMcp();
+      setMsg(t("mcp.copied"));
+    } catch (err) {
+      setMsg((err as Error).message);
+    }
+  };
+
+  return (
+    <Card title={t("mcp.title")}>
+      <p className="muted small">{t("mcp.help")}</p>
+      <form className="csv-form" onSubmit={(e) => void save(e)}>
+        <label>
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> {t("mcp.enable")}
+        </label>
+        <label>{t("mcp.port")} <input type="number" min={1024} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} /></label>
+        <button className="btn">{t("byok.save")}</button>
+        <button type="button" className="btn ghost" onClick={() => void rotate()}>{t("mcp.rotate")}</button>
+        <button type="button" className="btn ghost" onClick={() => void copy()} disabled={!view?.tokenHint}>{t("mcp.copy")}</button>
+      </form>
+      <p className="muted small">{view?.running ? t("mcp.running", { url: view.url ?? "" }) : t("mcp.stopped")}</p>
+      {token && (
+        <>
+          <p className="notice">{t("mcp.token_once")}</p>
+          <p><code>{token}</code></p>
+        </>
+      )}
       {msg && <p className="notice">{msg}</p>}
     </Card>
   );

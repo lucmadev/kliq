@@ -6,6 +6,7 @@ import { installKeychain } from "./keychain";
 import { currentLocale, registerIpc } from "./ipc";
 import { llmReady, summarizeReport } from "./llm";
 import { setSummarizer } from "./report";
+import { stopMcpServer, syncMcpWithSettings } from "./mcp";
 import { startDailySync } from "./schedule";
 import { loadSettings } from "./settings";
 import { runSync } from "./youtube";
@@ -100,11 +101,16 @@ app.whenReady().then(() => {
     },
   });
   registerIpc();
+  void syncMcpWithSettings(database()).catch(() => console.error("mcp start failed"));
   hardenSession();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+app.on("before-quit", () => {
+  void stopMcpServer();
 });
 
 app.on("window-all-closed", () => {

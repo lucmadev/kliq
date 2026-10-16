@@ -31,6 +31,10 @@ const kliq = {
   saveSettings: (payload: unknown) => ipcRenderer.invoke("save-settings", payload),
   saveLlmKey: (key: string) => ipcRenderer.invoke("save-llm-key", key),
   clearLlmKey: () => ipcRenderer.invoke("clear-llm-key"),
+  mcp: () => ipcRenderer.invoke("mcp"),
+  saveMcp: (payload: { enabled: boolean; port: number }) => ipcRenderer.invoke("save-mcp", payload),
+  rotateMcp: () => ipcRenderer.invoke("rotate-mcp"),
+  copyMcp: () => ipcRenderer.invoke("copy-mcp"),
 };
 
 contextBridge.exposeInMainWorld("kliq", kliq);

@@ -103,6 +103,14 @@ export type VideoDetail = {
   reach: { period_start: string; period_end: string; impressions: number; ctr: number | null }[];
 };
 
+export type McpView = {
+  enabled: boolean;
+  port: number;
+  running: boolean;
+  url: string | null;
+  tokenHint: string | null;
+};
+
 export type SettingsView = {
   tz: string;
   syncHour: number;
@@ -141,4 +149,9 @@ export const api = {
     window.kliq.saveSettings(payload) as Promise<SettingsView>,
   saveLlmKey: (key: string) => window.kliq.saveLlmKey(key) as Promise<{ keySet: boolean; keyHint: string | null }>,
   clearLlmKey: () => window.kliq.clearLlmKey() as Promise<{ keySet: boolean; keyHint: string | null }>,
+  mcp: () => window.kliq.mcp() as Promise<McpView>,
+  saveMcp: (payload: { enabled: boolean; port: number }) =>
+    window.kliq.saveMcp(payload) as Promise<{ view: McpView; token?: string }>,
+  rotateMcp: () => window.kliq.rotateMcp() as Promise<{ token: string; view: McpView }>,
+  copyMcp: () => window.kliq.copyMcp() as Promise<{ copied: boolean }>,
 };
