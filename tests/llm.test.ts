@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { openDatabase } from "./db";
-import { llmReady, saveLlmKey, settingsView, updateSettings, weeklyPrompt } from "./llm";
-import type { Report } from "./report";
-import { SECRET, secretGet, useSecretStore } from "./secrets";
-import { loadSettings } from "./settings";
+import { openDatabase } from "../src/main/db";
+import { llmReady, saveLlmKey, settingsView, updateSettings, weeklyPrompt } from "../src/main/llm";
+import type { Report } from "../src/main/report";
+import { SECRET, secretGet, useSecretStore } from "../src/main/secrets";
+import { loadSettings } from "../src/main/settings";
 
 function memoryStore(): void {
   const memory = new Map<string, string>();

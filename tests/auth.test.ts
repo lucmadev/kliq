@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { clientView, isConnected, saveClient } from "./auth";
-import { SECRET, secretSet, useSecretStore } from "./secrets";
+import { clientView, isConnected, saveClient } from "../src/main/auth";
+import { SECRET, secretSet, useSecretStore } from "../src/main/secrets";
 
 describe("oauth client view", () => {
   it("shows a hint and never the full secret", () => {

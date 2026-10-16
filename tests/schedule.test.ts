@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextDailyRun } from "./schedule";
+import { nextDailyRun } from "../src/main/schedule";
 
 describe("daily sync clock", () => {
   it("fires at 06:07 in Buenos Aires and rolls to the next day after that", () => {

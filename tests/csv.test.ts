@@ -2,11 +2,11 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { importReach } from "./csv";
-import { openDatabase } from "./db";
-import { latestReach } from "./report";
-import { seed } from "./seed";
-import { listVideos, videoDetail } from "./videos";
+import { importReach } from "../src/main/csv";
+import { openDatabase } from "../src/main/db";
+import { latestReach } from "../src/main/report";
+import { seed } from "../src/main/seed";
+import { listVideos, videoDetail } from "../src/main/videos";
 
 function tempDb() {
   const dir = mkdtempSync(join(tmpdir(), "kliq-"));

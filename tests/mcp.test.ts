@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { openDatabase, setDatabase } from "./db";
-import { SECRET, secretSet, useSecretStore } from "./secrets";
-import { runPrompt, runTool, startMcpServer, stopMcpServer, TOOL_NAMES, mcpListenPort } from "./mcp";
+import { openDatabase, setDatabase } from "../src/main/db";
+import { SECRET, secretSet, useSecretStore } from "../src/main/secrets";
+import { runPrompt, runTool, startMcpServer, stopMcpServer, TOOL_NAMES, mcpListenPort } from "../src/main/mcp";
 
 const REFRESH = "refresh-token-value";
 const LLM_KEY = "sk-test-secret-value";

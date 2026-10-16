@@ -17,5 +17,5 @@
       "google-auth-library": ["./src/types/google-auth-library.ts"]
     }
   },
-  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/types/**/*", "vitest.config.ts"]
+  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/types/**/*", "tests/**/*", "vitest.config.ts"]
 }

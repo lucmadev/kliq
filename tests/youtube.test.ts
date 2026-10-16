@@ -2,8 +2,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { openDatabase } from "./db";
-import { parseDuration, runSync } from "./youtube";
+import { openDatabase } from "../src/main/db";
+import { parseDuration, runSync } from "../src/main/youtube";
 
 describe("youtube sync", () => {
   it("parses ISO 8601 durations", () => {
