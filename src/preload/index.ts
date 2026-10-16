@@ -27,6 +27,10 @@ const kliq = {
   },
   importReach: (payload: { csv: string; periodStart: string; periodEnd: string }) =>
     ipcRenderer.invoke("import-reach", payload),
+  settings: () => ipcRenderer.invoke("settings"),
+  saveSettings: (payload: unknown) => ipcRenderer.invoke("save-settings", payload),
+  saveLlmKey: (key: string) => ipcRenderer.invoke("save-llm-key", key),
+  clearLlmKey: () => ipcRenderer.invoke("clear-llm-key"),
 };
 
 contextBridge.exposeInMainWorld("kliq", kliq);

@@ -6,18 +6,22 @@ import { seed } from "./seed";
 import { isLocale, translate, type Locale } from "../shared/i18n";
 import { listVideos, videoDetail } from "./videos";
 import { importReach } from "./csv";
-import { latestReach } from "./report";
+import { buildReport, latestReach, saveReport } from "./report";
 import { clientView, disconnectAccount, isConfigured, isConnected, saveClient } from "./auth";
 import { startLogin } from "./oauth";
 import { fetchRetention, isRunning, runSync } from "./youtube";
+import { clearLlmKey, llmReady, saveLlmKey, settingsView, summarizeReport, updateSettings } from "./llm";
+import { loadSettings } from "./settings";
+import { nextSyncIso, rescheduleDailySync } from "./schedule";
 
 export function runtime(): Runtime {
+  const settings = loadSettings(database());
   return {
     configured: isConfigured(),
     connected: isConnected(),
     syncing: isRunning(),
-    nextSync: null,
-    llm: { provider: "none", enabled: false },
+    nextSync: nextSyncIso(),
+    llm: { provider: settings.llmProvider, enabled: llmReady(settings) },
   };
 }
 
@@ -85,5 +89,21 @@ export function registerIpc(): void {
   handle("seed-demo", async () => {
     const n = await seed(database());
     return { videos: n };
+  });
+  handle("settings", () => settingsView(database()));
+  handle("save-settings", (payload) => {
+    const view = updateSettings(database(), payload, currentLocale());
+    rescheduleDailySync();
+    return view;
+  });
+  handle("save-llm-key", (key) => saveLlmKey(String(key ?? ""), currentLocale()));
+  handle("clear-llm-key", () => clearLlmKey(currentLocale()));
+  handle("summarize", async (week) => {
+    const locale = currentLocale();
+    const report = buildReport(database(), typeof week === "string" ? week : null, locale);
+    if (!report) throw new AppError(translate(locale, "error.no_data"), 404);
+    const summary = await summarizeReport(database(), report, locale);
+    saveReport(database(), report, summary);
+    return { summary };
   });
 }

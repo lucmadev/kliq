@@ -81,7 +81,7 @@ type Summarizer = {
 let summarizer: Summarizer = {
   enabled: () => false,
   summarize: async () => {
-    throw new Error("IA desactivada");
+    throw new Error("AI is off");
   },
 };
 

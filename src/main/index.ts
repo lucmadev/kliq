@@ -1,8 +1,14 @@
 import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "node:path";
-import { kvGet, kvSet, openDatabase, setDatabase } from "./db";
+import { isConnected } from "./auth";
+import { database, kvGet, kvSet, openDatabase, setDatabase } from "./db";
 import { installKeychain } from "./keychain";
 import { currentLocale, registerIpc } from "./ipc";
+import { llmReady, summarizeReport } from "./llm";
+import { setSummarizer } from "./report";
+import { startDailySync } from "./schedule";
+import { loadSettings } from "./settings";
+import { runSync } from "./youtube";
 import { isLocale } from "../shared/i18n";
 
 const CSP = [
@@ -79,6 +85,20 @@ app.whenReady().then(() => {
     kvSet(db, "locale", app.getLocale().toLowerCase().startsWith("es") ? "es" : "en");
   }
   installKeychain(join(app.getPath("userData"), "secrets.json"), currentLocale);
+  setSummarizer({
+    enabled: () => llmReady(loadSettings(database())),
+    summarize: (report) => summarizeReport(database(), report, currentLocale()),
+  });
+  startDailySync({
+    read: () => {
+      const settings = loadSettings(database());
+      return { tz: settings.tz, hour: settings.syncHour };
+    },
+    shouldRun: () => isConnected(),
+    run: () => {
+      void runSync(database());
+    },
+  });
   registerIpc();
   hardenSession();
   createWindow();

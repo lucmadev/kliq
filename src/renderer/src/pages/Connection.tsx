@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, type Status } from "../api";
+import { api, type SettingsView, type Status } from "../api";
 import { Card } from "../components/ui";
 import { ago, day, num } from "../format";
 import { useI18n } from "../i18n";
@@ -140,8 +140,135 @@ export default function Connection({ status, refresh, notify }: {
         </dl>
       </Card>
 
+      <ScheduleCard refresh={refresh} />
+      <ModelCard refresh={refresh} />
       <CsvImport onDone={refresh} />
     </div>
+  );
+}
+
+function ScheduleCard({ refresh }: { refresh: () => void }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState({ tz: "", syncHour: 6, syncDaysBack: 28, initialDaysBack: 120 });
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.settings().then((settings) => {
+      setForm({
+        tz: settings.tz,
+        syncHour: settings.syncHour,
+        syncDaysBack: settings.syncDaysBack,
+        initialDaysBack: settings.initialDaysBack,
+      });
+    }).catch(() => undefined);
+  }, []);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const current = await api.settings();
+    try {
+      await api.saveSettings({ ...current, ...form });
+      setMsg(t("sched.saved"));
+      refresh();
+    } catch (err) {
+      setMsg((err as Error).message);
+    }
+  };
+
+  return (
+    <Card title={t("sched.title")}>
+      <p className="muted small">{t("sched.help")}</p>
+      <form className="csv-form" onSubmit={(e) => void save(e)}>
+        <label>{t("sched.hour")} <input type="number" min={0} max={23} value={form.syncHour} onChange={(e) => setForm({ ...form, syncHour: Number(e.target.value) })} /></label>
+        <label>{t("sched.tz")} <input type="text" value={form.tz} onChange={(e) => setForm({ ...form, tz: e.target.value })} /></label>
+        <label>{t("sched.days")} <input type="number" min={1} max={365} value={form.syncDaysBack} onChange={(e) => setForm({ ...form, syncDaysBack: Number(e.target.value) })} /></label>
+        <label>{t("sched.initial")} <input type="number" min={1} max={730} value={form.initialDaysBack} onChange={(e) => setForm({ ...form, initialDaysBack: Number(e.target.value) })} /></label>
+        <button className="btn ghost">{t("byok.save")}</button>
+      </form>
+      {msg && <p className="notice">{msg}</p>}
+    </Card>
+  );
+}
+
+function ModelCard({ refresh }: { refresh: () => void }) {
+  const { t } = useI18n();
+  const [settings, setSettings] = useState<SettingsView | null>(null);
+  const [provider, setProvider] = useState<SettingsView["llmProvider"]>("none");
+  const [model, setModel] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = () => {
+    api.settings().then((next) => {
+      setSettings(next);
+      setProvider(next.llmProvider);
+      setModel(next.llmModel);
+      setBaseUrl(next.llmBaseUrl);
+    }).catch(() => undefined);
+  };
+
+  useEffect(load, []);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+    try {
+      const saved = await api.saveSettings({ ...settings, llmProvider: provider, llmModel: model, llmBaseUrl: baseUrl });
+      if (apiKey.trim()) {
+        const key = await api.saveLlmKey(apiKey);
+        setSettings({ ...saved, ...key });
+      } else {
+        setSettings(saved);
+      }
+      setApiKey("");
+      setMsg(t("byok.saved"));
+      refresh();
+    } catch (err) {
+      setMsg((err as Error).message);
+    }
+  };
+
+  const clearKey = async () => {
+    try {
+      const key = await api.clearLlmKey();
+      setSettings((cur) => (cur ? { ...cur, ...key, enabled: cur.llmProvider === "compatible" } : cur));
+      setMsg(t("byok.key_missing"));
+      refresh();
+    } catch (err) {
+      setMsg((err as Error).message);
+    }
+  };
+
+  return (
+    <Card title={t("byok.title")}>
+      <p className="muted small">{t("byok.help")}</p>
+      <form className="csv-form" onSubmit={(e) => void save(e)}>
+        <label>
+          {t("byok.provider")}
+          <select value={provider} onChange={(e) => setProvider(e.target.value as SettingsView["llmProvider"])}>
+            <option value="none">{t("byok.provider_none")}</option>
+            <option value="anthropic">{t("byok.provider_anthropic")}</option>
+            <option value="openai">{t("byok.provider_openai")}</option>
+            <option value="compatible">{t("byok.provider_compatible")}</option>
+          </select>
+        </label>
+        <label>{t("byok.model")} <input type="text" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" /></label>
+        {provider === "compatible" && (
+          <label>{t("byok.base_url")} <input type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>
+        )}
+        <label>
+          {t("byok.api_key")}
+          <input type="password" value={apiKey} placeholder={settings?.keyHint ? `••••${settings.keyHint}` : ""} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
+        </label>
+        <button className="btn">{t("byok.save")}</button>
+        {settings?.keySet && <button type="button" className="btn ghost" onClick={() => void clearKey()}>{t("byok.clear")}</button>}
+      </form>
+      <p className="muted small">
+        {settings?.keySet ? t("byok.key_set", { hint: settings.keyHint ?? "" }) : t("byok.key_missing")}
+      </p>
+      {msg && <p className="notice">{msg}</p>}
+    </Card>
   );
 }
 

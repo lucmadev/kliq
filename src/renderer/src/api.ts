@@ -103,6 +103,19 @@ export type VideoDetail = {
   reach: { period_start: string; period_end: string; impressions: number; ctr: number | null }[];
 };
 
+export type SettingsView = {
+  tz: string;
+  syncHour: number;
+  syncDaysBack: number;
+  initialDaysBack: number;
+  llmProvider: "none" | "anthropic" | "openai" | "compatible";
+  llmModel: string;
+  llmBaseUrl: string;
+  enabled: boolean;
+  keySet: boolean;
+  keyHint: string | null;
+};
+
 export const api = {
   locale: () => window.kliq.locale(),
   setLocale: (locale: Locale) => window.kliq.setLocale(locale),
@@ -123,4 +136,9 @@ export const api = {
   onAuth: (cb: (result: { ok: boolean; message?: string }) => void) => window.kliq.onAuth(cb),
   importReach: async (file: File, start: string, end: string) =>
     window.kliq.importReach({ csv: await file.text(), periodStart: start, periodEnd: end }),
+  settings: () => window.kliq.settings() as Promise<SettingsView>,
+  saveSettings: (payload: Omit<SettingsView, "enabled" | "keySet" | "keyHint">) =>
+    window.kliq.saveSettings(payload) as Promise<SettingsView>,
+  saveLlmKey: (key: string) => window.kliq.saveLlmKey(key) as Promise<{ keySet: boolean; keyHint: string | null }>,
+  clearLlmKey: () => window.kliq.clearLlmKey() as Promise<{ keySet: boolean; keyHint: string | null }>,
 };

@@ -198,9 +198,15 @@ const en = {
   "byok.key_missing": "No key saved",
   "byok.save": "Save",
   "byok.clear": "Remove key",
+  "byok.saved": "Model settings saved.",
+
+  "llm.lang_name": "English",
+  "llm.section_what": "What happened",
+  "llm.section_do": "What I do this week",
 
   "sched.title": "Daily sync",
-  "sched.help": "Runs only while Kliq is open, at the hour you set.",
+  "sched.help": "Runs only while Kliq is open, at minute 7 of the hour you set.",
+  "sched.saved": "Schedule saved.",
   "sched.hour": "Hour",
   "sched.tz": "Time zone",
   "sched.days": "Days to refresh",
@@ -247,6 +253,7 @@ const en = {
   "error.sync_busy": "A sync is already running",
   "error.keychain": "The system keychain is not available. Secrets were not saved.",
   "error.bad_url": "The base URL must be an http or https address",
+  "error.bad_settings": "Check the hour (0–23), the time zone, the day counts, and the base URL.",
   "oauth.page_ok": "Connected. You can close this window and return to Kliq.",
   "oauth.page_fail": "Something went wrong. Close this window and try again in Kliq.",
 } as const;
@@ -445,9 +452,15 @@ const es: { [K in keyof typeof en]: string } = {
   "byok.key_missing": "Sin clave guardada",
   "byok.save": "Guardar",
   "byok.clear": "Quitar clave",
+  "byok.saved": "Ajustes del modelo guardados.",
+
+  "llm.lang_name": "español rioplatense",
+  "llm.section_what": "Qué pasó",
+  "llm.section_do": "Qué hago esta semana",
 
   "sched.title": "Sync diario",
-  "sched.help": "Corre solo mientras Kliq está abierto, a la hora que elijas.",
+  "sched.help": "Corre solo mientras Kliq está abierto, al minuto 7 de la hora que elijas.",
+  "sched.saved": "Horario guardado.",
   "sched.hour": "Hora",
   "sched.tz": "Zona horaria",
   "sched.days": "Días a refrescar",
@@ -494,6 +507,7 @@ const es: { [K in keyof typeof en]: string } = {
   "error.sync_busy": "Ya hay un sync corriendo",
   "error.keychain": "El llavero del sistema no está disponible. No se guardaron secretos.",
   "error.bad_url": "La URL base tiene que ser http o https",
+  "error.bad_settings": "Revisá la hora (0–23), la zona horaria, los días y la URL base.",
   "oauth.page_ok": "Conectado. Podés cerrar esta ventana y volver a Kliq.",
   "oauth.page_fail": "Algo falló. Cerrá esta ventana y probá de nuevo en Kliq.",
 };
