@@ -67,10 +67,21 @@ export type Report = {
   summary: string | null;
 };
 
+export type AccountView = {
+  id: string;
+  title: string;
+  thumbnail: string | null;
+  subscribers: number;
+  connected: boolean;
+  active: boolean;
+  demo: boolean;
+};
+
 export type Status = {
   configured: boolean;
   connected: boolean;
   demo: boolean;
+  accounts: AccountView[];
   channel: { id: string; title: string; thumbnail: string | null; subscribers: number; views: number; video_count: number } | null;
   videos: number;
   data_range: { from: string; to: string } | null;
@@ -136,7 +147,9 @@ export const api = {
   video: (id: string) => window.kliq.video(id),
   retention: (id: string) => window.kliq.retention(id),
   sync: () => window.kliq.sync(),
-  disconnect: () => window.kliq.disconnect(),
+  accounts: () => window.kliq.accounts() as Promise<AccountView[]>,
+  activateAccount: (id: string) => window.kliq.activateAccount(id) as Promise<{ ok: boolean }>,
+  disconnect: (id: string) => window.kliq.disconnect(id) as Promise<{ ok: boolean }>,
   client: () => window.kliq.client() as Promise<{ clientId: string; secretHint: string | null }>,
   saveClient: (clientId: string, clientSecret: string) =>
     window.kliq.saveClient({ clientId, clientSecret }) as Promise<{ clientId: string; secretHint: string | null }>,

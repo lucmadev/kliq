@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/animate-ui/components/buttons/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { api, type Status } from "../api";
 import { Card } from "../components/ui";
-import { ago, day, num } from "../format";
+import { day, num } from "../format";
 import { useI18n } from "../i18n";
 
 export default function Connection({ status, refresh, notify }: {
@@ -40,10 +41,22 @@ export default function Connection({ status, refresh, notify }: {
     }
   };
 
-  const disconnect = async () => {
+  const disconnect = async (id: string) => {
     if (!confirm(t("conn.disconnect_confirm"))) return;
-    await api.disconnect();
+    await api.disconnect(id);
     refresh();
+  };
+
+  const activate = async (id: string) => {
+    setBusy(true);
+    try {
+      await api.activateAccount(id);
+      refresh();
+    } catch (err) {
+      setMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveClient = async (e: FormEvent) => {
@@ -82,35 +95,43 @@ export default function Connection({ status, refresh, notify }: {
           <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_secret")} <Input type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
           <Button variant="outline" disabled={busy}>{t("conn.save_client")}</Button>
         </form>
-        {status.connected ? (
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <strong>{status.channel?.title ?? t("app.brand_fallback")}</strong>
-              <div className="text-[0.82rem] text-muted-foreground">
-                {status.channel && (
-                  <>
-                    {t("conn.subscribers_videos", {
-                      subs: num(status.channel.subscribers, locale),
-                      videos: num(status.videos, locale),
-                    })}
-                  </>
-                )}
-                {t("conn.last_sync_line", { when: ago(status.last_sync?.finished_at ?? status.last_sync?.started_at, locale) })}
+        <ul className="mt-4 flex flex-col gap-2">
+          {status.accounts.length === 0 && <li className="text-muted-foreground">{t("accounts.none")}</li>}
+          {status.accounts.map((account) => (
+            <li key={account.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
+              <div>
+                <strong>{account.title}</strong>
+                {account.active && <Badge className="ml-2">{t("accounts.active")}</Badge>}
+                <div className="text-[0.82rem] text-muted-foreground">
+                  {account.demo
+                    ? t("app.demo")
+                    : account.connected
+                      ? t("accounts.subscribers", { count: num(account.subscribers, locale) })
+                      : t("accounts.signed_out")}
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={sync} disabled={busy || status.syncing}>
-                {status.syncing ? t("conn.syncing") : t("conn.sync")}
-              </Button>
-              <Button variant="outline" onClick={() => void disconnect()}>{t("conn.disconnect")}</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="text-muted-foreground">{t("conn.readonly")}</p>
-            <Button onClick={() => void connect()} disabled={busy || !status.configured}>{t("conn.connect")}</Button>
-          </div>
-        )}
+              <div className="flex flex-wrap gap-2">
+                {!account.active && (
+                  <Button variant="outline" disabled={busy || status.syncing} onClick={() => void activate(account.id)}>{t("accounts.use")}</Button>
+                )}
+                {account.active && account.connected && (
+                  <Button onClick={sync} disabled={busy || status.syncing}>
+                    {status.syncing ? t("conn.syncing") : t("conn.sync")}
+                  </Button>
+                )}
+                {!account.demo && account.connected && (
+                  <Button variant="outline" onClick={() => void disconnect(account.id)}>{t("conn.disconnect")}</Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-muted-foreground">{t("conn.readonly")}</p>
+          <Button onClick={() => void connect()} disabled={busy || !status.configured}>
+            {status.accounts.some((account) => account.connected) ? t("accounts.add") : t("conn.connect")}
+          </Button>
+        </div>
         {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
 
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t pt-3.5 max-[620px]:grid-cols-1">

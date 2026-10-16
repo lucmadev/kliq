@@ -25,7 +25,7 @@ export default function Videos({ status, selected, onSelect }: {
 
   useEffect(() => {
     api.videos().then(setRows).catch((e) => setError(e.message));
-  }, [status.data_range?.to]);
+  }, [status.channel?.id]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();

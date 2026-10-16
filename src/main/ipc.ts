@@ -5,6 +5,7 @@ import {
   activeAccountId,
   DEMO_ID,
   metaDatabase,
+  listAccountViews,
   metaReady,
   rememberAccount,
 } from "./accounts";
@@ -86,9 +87,10 @@ export function registerIpc(): void {
         syncing: isRunning(),
         next_sync: nextSyncIso(),
         llm: { provider: settings.llmProvider, enabled: llmReady(settings) },
+        accounts: listAccountViews(),
       };
     }
-    return getStatus(db, runtime());
+    return { ...getStatus(db, runtime()), accounts: listAccountViews() };
   });
   handle("weeks", () => getWeeks(channelDb()));
   handle("report", (week) => getReport(channelDb(), typeof week === "string" ? week : null, currentLocale()));
@@ -108,6 +110,11 @@ export function registerIpc(): void {
   });
   handle("connect", () => {
     startLogin(currentLocale());
+    return { ok: true };
+  });
+  handle("accounts", () => listAccountViews());
+  handle("activate-account", (id) => {
+    activateAccount(String(id ?? ""), currentLocale(), isRunning());
     return { ok: true };
   });
   handle("disconnect", (id) => {

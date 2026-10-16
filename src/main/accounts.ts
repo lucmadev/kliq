@@ -150,6 +150,52 @@ export function listAccountRecords(): AccountRecord[] {
   return meta.prepare("SELECT id, title, thumbnail FROM accounts ORDER BY created_at").all() as AccountRecord[];
 }
 
+export type AccountView = AccountRecord & {
+  subscribers: number;
+  connected: boolean;
+  active: boolean;
+  demo: boolean;
+};
+
+export function listAccountViews(): AccountView[] {
+  if (!meta) return [];
+  const active = activeAccountId();
+  return listAccountRecords().map((row) => {
+    const channel = readChannel(row.id, active);
+    return {
+      id: row.id,
+      title: channel?.title || row.title,
+      thumbnail: channel?.thumbnail ?? row.thumbnail,
+      subscribers: channel?.subscribers ?? 0,
+      connected: row.id !== DEMO_ID && Boolean(secretGet(accountTokenKey(row.id))),
+      active: row.id === active,
+      demo: row.id === DEMO_ID,
+    };
+  });
+}
+
+function readChannel(
+  id: string,
+  active: string | null,
+): { title: string; thumbnail: string | null; subscribers: number } | null {
+  const query = "SELECT title, thumbnail, subscribers FROM channel LIMIT 1";
+  if (id === active) {
+    const db = peekDatabase();
+    if (!db) return null;
+    return (db.prepare(query).get() as { title: string; thumbnail: string | null; subscribers: number } | undefined) ?? null;
+  }
+  const path = accountPath(id);
+  if (!existsSync(path)) return null;
+  const db = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    return (db.prepare(query).get() as { title: string; thumbnail: string | null; subscribers: number } | undefined) ?? null;
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
+}
+
 export function noteActiveChannel(db: Database.Database): void {
   if (!meta) return;
   const id = activeAccountId();

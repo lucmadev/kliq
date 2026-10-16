@@ -30,6 +30,10 @@ export default function App() {
   }, [refresh, locale]);
 
   useEffect(() => {
+    setVideo(null);
+  }, [status?.channel?.id]);
+
+  useEffect(() => {
     return api.onAuth((result) => {
       toast(result.ok ? t("toast.connected") : result.message ?? t("error.oauth_generic"));
       refresh();

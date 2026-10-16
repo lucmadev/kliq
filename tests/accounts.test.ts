@@ -8,6 +8,7 @@ import {
   accountTokenKey,
   activateAccount,
   activeAccountId,
+  listAccountViews,
   adoptLegacyToken,
   closeAccounts,
   initAccounts,
@@ -81,6 +82,12 @@ describe("account store", () => {
     expect(secretGet(accountTokenKey(idA))).toBe("tok-a");
     activateAccount(idA, "en", false);
     expect(isConnected()).toBe(true);
+    const views = listAccountViews();
+    expect(views.map((account) => account.id)).toEqual([idA, idB]);
+    expect(views[0]?.active).toBe(true);
+    expect(views[0]?.subscribers).toBe(1);
+    expect(views[1]?.connected).toBe(false);
+    expect(views[1]?.subscribers).toBe(4);
   });
 
   it("refuses to switch while a sync is running", () => {

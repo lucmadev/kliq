@@ -23,15 +23,15 @@ export default function Weekly({ status, onOpenVideo }: Props) {
   useEffect(() => {
     api.weeks().then((w) => {
       setWeeks(w);
-      setWeek((cur) => cur ?? w[0]);
+      setWeek(w[0]);
     }).catch((e) => setError(e.message));
-  }, [status.data_range?.to]);
+  }, [status.channel?.id]);
 
   useEffect(() => {
     if (!week) return;
     setError(null);
     api.report(week).then(setReport).catch((e) => setError(e.message));
-  }, [week]);
+  }, [week, status.channel?.id]);
 
   if (error && !report) return <Empty>{error}</Empty>;
   if (!weeks.length && !report) return <Empty>{t("week.empty")}</Empty>;

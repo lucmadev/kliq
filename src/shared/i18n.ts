@@ -158,6 +158,13 @@ const en = {
   "videos.no_retention": "Nothing saved yet.",
   "videos.retention_needs_connection": "Connect your channel to fetch the retention curve.",
 
+  "accounts.active": "Active",
+  "accounts.use": "Use",
+  "accounts.add": "Connect another account",
+  "accounts.none": "No accounts yet.",
+  "accounts.signed_out": "Signed out",
+  "accounts.subscribers": "{count} subscribers",
+
   "conn.title": "YouTube account",
   "conn.missing_client": "Add the Google OAuth client from Cloud Console. Use a Desktop client. The secret stays in the system keychain.",
   "conn.client_id": "Client ID",
@@ -416,6 +423,13 @@ const es: { [K in keyof typeof en]: string } = {
   "videos.still_watching": "Siguen mirando",
   "videos.no_retention": "Sin datos guardados todavía.",
   "videos.retention_needs_connection": "Conectá tu canal para traer la curva de retención.",
+
+  "accounts.active": "Activa",
+  "accounts.use": "Usar",
+  "accounts.add": "Conectar otra cuenta",
+  "accounts.none": "Todavía no hay cuentas.",
+  "accounts.signed_out": "Sin sesión",
+  "accounts.subscribers": "{count} suscriptores",
 
   "conn.title": "Cuenta de YouTube",
   "conn.missing_client": "Agregá el cliente OAuth de Google desde Cloud Console. Usá un cliente de tipo Desktop. El secreto queda en el llavero del sistema.",
