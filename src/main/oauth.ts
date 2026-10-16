@@ -2,12 +2,14 @@ import { createHash, randomBytes } from "node:crypto";
 import http from "node:http";
 import { BrowserWindow, shell } from "electron";
 import { CodeChallengeMethod, OAuth2Client } from "google-auth-library";
+import { google } from "googleapis";
+import { saveConnectedChannel, type ConnectedChannel } from "./accounts";
 import { SCOPES } from "./auth";
 import { AppError } from "./errors";
 import { database } from "./db";
-import { SECRET, secretGet, secretSet, secretsAvailable } from "./secrets";
+import { SECRET, secretGet, secretsAvailable } from "./secrets";
 import { translate, type Locale } from "../shared/i18n";
-import { runSync } from "./youtube";
+import { isRunning, runSync } from "./youtube";
 
 const pending = new Map<string, { verifier: string; at: number }>();
 const TTL_MS = 10 * 60 * 1000;
@@ -58,9 +60,9 @@ export function startLogin(locale: Locale): void {
       return;
     }
     void finishLogin(code, state, redirectUri, locale)
-      .then(() => {
+      .then((sync) => {
         finish(true);
-        void runSync(database());
+        if (sync) void runSync(database());
       })
       .catch((err: unknown) => {
         console.error("oauth callback failed");
@@ -84,7 +86,7 @@ export function startLogin(locale: Locale): void {
     });
     const url = client.generateAuthUrl({
       access_type: "offline",
-      prompt: "consent",
+      prompt: "consent select_account",
       scope: SCOPES,
       state,
       code_challenge: challenge(codeVerifier),
@@ -95,7 +97,27 @@ export function startLogin(locale: Locale): void {
   setTimeout(() => server.close(), TTL_MS).unref();
 }
 
-async function finishLogin(code: string, state: string, redirectUri: string, locale: Locale): Promise<void> {
+async function identifyMine(refreshToken: string, locale: Locale): Promise<ConnectedChannel> {
+  const client = new OAuth2Client({
+    clientId: secretGet(SECRET.clientId) ?? "",
+    clientSecret: secretGet(SECRET.clientSecret) ?? "",
+  });
+  client.setCredentials({ refresh_token: refreshToken });
+  const yt = google.youtube({ version: "v3", auth: client });
+  const resp = await yt.channels.list({ part: ["snippet", "statistics"], mine: true });
+  const ch = resp.data.items?.[0];
+  if (!ch?.id) throw new AppError(translate(locale, "error.no_channel"));
+  return {
+    id: ch.id,
+    title: ch.snippet?.title ?? "",
+    thumbnail: ch.snippet?.thumbnails?.default?.url ?? null,
+    subscribers: Number(ch.statistics?.subscriberCount ?? 0),
+    views: Number(ch.statistics?.viewCount ?? 0),
+    videoCount: Number(ch.statistics?.videoCount ?? 0),
+  };
+}
+
+async function finishLogin(code: string, state: string, redirectUri: string, locale: Locale): Promise<boolean> {
   const item = pending.get(state);
   pending.delete(state);
   if (!item || Date.now() - item.at > TTL_MS) throw new AppError(translate(locale, "error.oauth_state"));
@@ -106,5 +128,7 @@ async function finishLogin(code: string, state: string, redirectUri: string, loc
   });
   const { tokens } = await client.getToken({ code, codeVerifier: item.verifier });
   if (!tokens.refresh_token) throw new AppError(translate(locale, "error.oauth_no_refresh"));
-  secretSet(SECRET.refreshToken, tokens.refresh_token);
+  const busy = isRunning();
+  saveConnectedChannel(tokens.refresh_token, await identifyMine(tokens.refresh_token, locale), locale, busy);
+  return !busy;
 }
