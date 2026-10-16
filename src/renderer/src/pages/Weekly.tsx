@@ -10,9 +10,9 @@ import { Card, Delta, Empty, Flag, MiniMarkdown } from "../components/ui";
 import { day, num, range, secs, short } from "../format";
 import { useI18n } from "../i18n";
 
-type Props = { status: Status; onOpenVideo: (id: string) => void };
+type Props = { status: Status; onOpenVideo: (id: string) => void; onOpenModel: () => void };
 
-export default function Weekly({ status, onOpenVideo }: Props) {
+export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
   const { t, locale } = useI18n();
   const [weeks, setWeeks] = useState<string[]>([]);
   const [week, setWeek] = useState<string | undefined>();
@@ -104,7 +104,7 @@ export default function Weekly({ status, onOpenVideo }: Props) {
                   {summarizing ? t("week.thinking") : report.summary ? t("week.regenerate") : t("week.generate")}
                 </Button>
               ) : (
-                <span className="text-[0.82rem] text-muted-foreground">{t("week.ai_off")}</span>
+                <button type="button" className="text-[0.82rem] text-primary underline" onClick={onOpenModel}>{t("week.ai_off")}</button>
               )}
             </div>
             {report.summary ? <MiniMarkdown text={report.summary} /> : (

@@ -108,7 +108,7 @@ export default function App() {
             <p className="text-[0.82rem] text-muted-foreground">{t("onboard.demo_hint")}</p>
           </div>
         ) : view === "analytics" ? (
-          <Weekly status={status} onOpenVideo={openVideo} />
+          <Weekly status={status} onOpenVideo={openVideo} onOpenModel={() => setView("model")} />
         ) : view === "videos" ? (
           <Videos status={status} selected={video} onSelect={setVideo} />
         ) : (
