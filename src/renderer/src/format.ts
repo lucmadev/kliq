@@ -1,12 +1,16 @@
 import { intlTag, translate, type Locale, type MessageKey } from "../../shared/i18n";
 
+function none(locale: Locale) {
+  return translate(locale, "empty.none");
+}
+
 export function num(n: number | null | undefined, locale: Locale) {
-  if (n == null) return "—";
+  if (n == null) return none(locale);
   return new Intl.NumberFormat(intlTag(locale)).format(n);
 }
 
 export function short(n: number | null | undefined, locale: Locale) {
-  if (n == null) return "—";
+  if (n == null) return none(locale);
   const tag = intlTag(locale);
   const abs = Math.abs(n);
   const dec = new Intl.NumberFormat(tag, { maximumFractionDigits: 1 });
@@ -16,15 +20,15 @@ export function short(n: number | null | undefined, locale: Locale) {
   return fmt.format(n);
 }
 
-export function secs(s: number | null | undefined) {
-  if (s == null) return "—";
+export function secs(s: number | null | undefined, locale: Locale = "en") {
+  if (s == null) return none(locale);
   const m = Math.floor(s / 60);
   const r = Math.round(s % 60);
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}:${String(r).padStart(2, "0")}`;
 }
 
 export function pct(p: number | null | undefined, locale: Locale, digits = 1) {
-  if (p == null) return "—";
+  if (p == null) return none(locale);
   const sign = p > 0 ? "+" : p < 0 ? "−" : "";
   const body = new Intl.NumberFormat(intlTag(locale), {
     minimumFractionDigits: digits,
@@ -34,7 +38,7 @@ export function pct(p: number | null | undefined, locale: Locale, digits = 1) {
 }
 
 export function day(iso: string | null | undefined, locale: Locale) {
-  if (!iso) return "—";
+  if (!iso) return none(locale);
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
   return new Intl.DateTimeFormat(intlTag(locale), { day: "numeric", month: "short" }).format(new Date(y, m - 1, d));
 }

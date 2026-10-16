@@ -58,7 +58,7 @@ async function queryAnalytics(
   auth: OAuth2Client,
   start: string,
   end: string,
-  query: { metrics: string; dimensions?: string; sort?: string; filters?: string; maxResults?: number },
+  query: { metrics: string; dimensions?: string; sort?: string; filters?: string; maxResults?: number; startIndex?: number },
 ): Promise<AnalyticsRow[]> {
   const ya = google.youtubeAnalytics({ version: "v2", auth });
   const resp = await ya.reports.query({
@@ -181,6 +181,44 @@ async function syncAnalytics(auth: OAuth2Client, db: Database.Database, start: s
   }
 }
 
+function asPercent(value: number): number {
+  if (value > 0 && value <= 1) return value * 100;
+  return value;
+}
+
+/** Impressions are stored per day so any selected range can sum them. A failure here does not abort the rest of the sync. */
+export async function syncReach(auth: OAuth2Client, db: Database.Database, start: string, end: string): Promise<number> {
+  const insert = db.prepare("INSERT OR REPLACE INTO reach_daily VALUES (?,?,?,?)");
+  let startIndex = 1;
+  let saved = 0;
+  try {
+    for (;;) {
+      const rows = await queryAnalytics(auth, start, end, {
+        metrics: "impressions,impressionClickThroughRate",
+        dimensions: "day,video",
+        sort: "day",
+        maxResults: 200,
+        startIndex,
+      });
+      if (!rows.length) break;
+      for (const row of rows) {
+        const video = String(row.video ?? "");
+        if (!/^[A-Za-z0-9_-]{11}$/.test(video)) continue;
+        const impressions = Math.round(num(row.impressions));
+        insert.run(String(row.day), video, impressions, asPercent(num(row.impressionClickThroughRate)));
+        saved += 1;
+      }
+      if (rows.length < 200) break;
+      startIndex += rows.length;
+      if (startIndex > 20000) break;
+    }
+  } catch (err) {
+    console.error("impressions report failed", err);
+  }
+  kvSet(db, "reach_daily_rows", String(saved));
+  return saved;
+}
+
 export async function fetchRetention(db: Database.Database, videoId: string, locale: Locale): Promise<number> {
   assertVideoId(videoId, locale);
   const auth = await loadClient(locale);
@@ -221,6 +259,7 @@ export async function runSync(db: Database.Database, daysBack?: number | null): 
     await syncPublic(auth, db, locale);
     noteActiveChannel(db);
     await syncAnalytics(auth, db, start, end);
+    await syncReach(auth, db, start, end);
     kvSet(db, "demo", null);
     const generated = await autoGenerateReports(db, locale);
     const detail = `${start} → ${end}${generated.length ? ` · report ${generated.join(", ")}` : ""}`;

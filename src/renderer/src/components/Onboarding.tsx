@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/animate-ui/components/buttons/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/animate/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, type SettingsView, type Status } from "../api";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
@@ -67,23 +69,19 @@ export default function Onboarding({ status, onDone, notify }: {
       {step === 0 && (
         <>
           <p className="text-sm text-muted-foreground">{t("onboard.step_lang")}</p>
-          <select
-            className="rounded-md border bg-card px-2 py-1 text-sm"
-            value={locale}
-            onChange={(e) => setLocale(e.target.value as Locale)}
-          >
-            <option value="en">{t("lang.en")}</option>
-            <option value="es">{t("lang.es")}</option>
-          </select>
-          <select
-            className="rounded-md border bg-card px-2 py-1 text-sm"
-            value={theme}
-            onChange={(e) => setTheme(e.target.value as ThemeChoice)}
-          >
-            {THEMES.map((choice) => (
-              <option key={choice} value={choice}>{t(`theme.${choice}`)}</option>
-            ))}
-          </select>
+          <Tabs value={locale} onValueChange={(value) => void setLocale(value as Locale)}>
+            <TabsList>
+              <TabsTrigger value="en">{t("lang.en")}</TabsTrigger>
+              <TabsTrigger value="es">{t("lang.es")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Tabs value={theme} onValueChange={(value) => void setTheme(value as ThemeChoice)}>
+            <TabsList>
+              {THEMES.map((choice) => (
+                <TabsTrigger key={choice} value={choice}>{t(`theme.${choice}`)}</TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           <Button onClick={() => setStep(1)}>{t("onboard.next")}</Button>
         </>
       )}
@@ -100,15 +98,14 @@ export default function Onboarding({ status, onDone, notify }: {
       {step === 2 && (
         <>
           <p className="text-sm text-muted-foreground">{t("onboard.step_key")}</p>
-          <select
-            className="rounded-md border bg-card px-2 py-1 text-sm"
-            value={provider}
-            onChange={(e) => setProvider(e.target.value as typeof provider)}
-          >
-            <option value="anthropic">{t("byok.provider_anthropic")}</option>
-            <option value="openai">{t("byok.provider_openai")}</option>
-            <option value="compatible">{t("byok.provider_compatible")}</option>
-          </select>
+          <Select value={provider} onValueChange={(value) => setProvider(value as typeof provider)}>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="anthropic">{t("byok.provider_anthropic")}</SelectItem>
+              <SelectItem value="openai">{t("byok.provider_openai")}</SelectItem>
+              <SelectItem value="compatible">{t("byok.provider_compatible")}</SelectItem>
+            </SelectContent>
+          </Select>
           <input
             className="rounded-md border bg-card px-2 py-1 text-sm"
             placeholder={t("byok.model")}

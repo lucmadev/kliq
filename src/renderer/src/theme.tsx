@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { THEMES, type ThemeChoice } from "../../shared/theme";
+import { ACCENTS, DEFAULT_ACCENT, THEMES, type AccentId, type ThemeChoice } from "../../shared/theme";
 import { api } from "./api";
 
 type ResolvedTheme = "light" | "dark";
 
 type ThemeValue = {
   theme: ThemeChoice;
+  accent: AccentId;
   resolved: ResolvedTheme;
   setTheme: (theme: ThemeChoice) => Promise<void>;
+  setAccent: (accent: AccentId) => Promise<void>;
 };
 
 const ThemeContext = createContext<ThemeValue | null>(null);
@@ -18,6 +20,7 @@ function systemDark(): boolean {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeChoice>("system");
+  const [accent, setAccentState] = useState<AccentId>(DEFAULT_ACCENT);
   const [osDark, setOsDark] = useState(systemDark);
 
   useEffect(() => {
@@ -29,6 +32,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     void pending.then((stored) => {
       if (THEMES.includes(stored)) setThemeState(stored);
+    }).catch(() => undefined);
+    api.accent().then((stored) => {
+      if (ACCENTS.some((item) => item.id === stored)) setAccentState(stored);
     }).catch(() => undefined);
   }, []);
 
@@ -44,16 +50,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", resolved === "dark");
     document.documentElement.style.colorScheme = resolved;
-  }, [resolved]);
+    document.documentElement.dataset.accent = accent;
+  }, [resolved, accent]);
 
   const value = useMemo<ThemeValue>(() => ({
     theme,
+    accent,
     resolved,
     setTheme: async (next) => {
       await api.setTheme(next);
       setThemeState(next);
     },
-  }), [theme, resolved]);
+    setAccent: async (next) => {
+      await api.setAccent(next);
+      setAccentState(next);
+    },
+  }), [theme, accent, resolved]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

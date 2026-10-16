@@ -1,5 +1,5 @@
 import type { Locale } from "../../shared/i18n";
-import type { ThemeChoice } from "../../shared/theme";
+import type { AccentId, ThemeChoice } from "../../shared/theme";
 
 export type Kpi = {
   key: string;
@@ -90,6 +90,7 @@ export type Status = {
   syncing: boolean;
   next_sync: string | null;
   llm: { provider: string; enabled: boolean };
+  has_daily_reach: boolean;
 };
 
 export type VideoRow = {
@@ -141,6 +142,13 @@ export const api = {
   setLocale: (locale: Locale) => window.kliq.setLocale(locale),
   theme: () => window.kliq.theme(),
   setTheme: (theme: ThemeChoice) => window.kliq.setTheme(theme),
+  accent: () => window.kliq.accent(),
+  setAccent: (accent: AccentId) => window.kliq.setAccent(accent),
+  windowMinimize: () => window.kliq.windowMinimize(),
+  windowToggleMaximize: () => window.kliq.windowToggleMaximize(),
+  windowClose: () => window.kliq.windowClose(),
+  onWindowMaximized: (cb: (maximized: boolean) => void) => window.kliq.onWindowMaximized(cb),
+  onAccount: (cb: () => void) => window.kliq.onAccount(cb),
   status: () => window.kliq.status(),
   weeks: () => window.kliq.weeks(),
   report: (payload?: string | { start: string; end: string }) => window.kliq.report(payload) as Promise<Report>,

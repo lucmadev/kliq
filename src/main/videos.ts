@@ -38,8 +38,14 @@ export function listVideos(db: Database.Database): VideoRow[] {
       `SELECT v.*,
         (SELECT COALESCE(SUM(views),0) FROM video_daily d WHERE d.video_id=v.id AND d.date BETWEEN ? AND ?) AS last7,
         (SELECT COALESCE(SUM(views),0) FROM video_daily d WHERE d.video_id=v.id AND d.date BETWEEN ? AND ?) AS prev7,
-        (SELECT ctr FROM reach r WHERE r.video_id=v.id ORDER BY period_end DESC LIMIT 1) AS ctr,
-        (SELECT impressions FROM reach r WHERE r.video_id=v.id ORDER BY period_end DESC LIMIT 1) AS impressions
+        COALESCE(
+          (SELECT ctr FROM reach_daily d WHERE d.video_id=v.id ORDER BY date DESC LIMIT 1),
+          (SELECT ctr FROM reach r WHERE r.video_id=v.id ORDER BY period_end DESC LIMIT 1)
+        ) AS ctr,
+        COALESCE(
+          (SELECT impressions FROM reach_daily d WHERE d.video_id=v.id ORDER BY date DESC LIMIT 1),
+          (SELECT impressions FROM reach r WHERE r.video_id=v.id ORDER BY period_end DESC LIMIT 1)
+        ) AS impressions
        FROM videos v ORDER BY published_at DESC`,
     )
     .all(w1s, last, w0s, w0e) as VideoRow[];
@@ -61,9 +67,14 @@ export function videoDetail(db: Database.Database, videoId: string, locale: Loca
   const retention = db
     .prepare("SELECT ratio, watch_ratio, relative_perf FROM retention WHERE video_id=? ORDER BY ratio")
     .all(videoId) as { ratio: number; watch_ratio: number; relative_perf: number }[];
-  const reach = db
-    .prepare("SELECT period_start, period_end, impressions, ctr FROM reach WHERE video_id=? ORDER BY period_end")
+  const dailyReach = db
+    .prepare("SELECT date AS period_start, date AS period_end, impressions, ctr FROM reach_daily WHERE video_id=? ORDER BY date")
     .all(videoId) as { period_start: string; period_end: string; impressions: number; ctr: number | null }[];
+  const reach = dailyReach.length
+    ? dailyReach
+    : (db
+        .prepare("SELECT period_start, period_end, impressions, ctr FROM reach WHERE video_id=? ORDER BY period_end")
+        .all(videoId) as { period_start: string; period_end: string; impressions: number; ctr: number | null }[]);
   const byDate = new Map(daily.map((row) => [row.date, row]));
   const series = [];
   for (let cursor = start; cursor <= end; cursor = addDays(cursor, 1)) {

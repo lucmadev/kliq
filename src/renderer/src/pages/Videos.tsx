@@ -72,7 +72,7 @@ export default function Videos({ status, selected, onSelect }: {
                   <TableCell className="text-right font-mono text-sm tabular-nums">{num(v.last7, locale)}</TableCell>
                   <TableCell className="text-right"><Delta value={v.delta_pct} /></TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{short(v.views, locale)}</TableCell>
-                  <TableCell className="text-right font-mono text-sm tabular-nums">{v.ctr != null ? `${num(v.ctr, locale)}%` : "—"}</TableCell>
+                  <TableCell className="text-right font-mono text-sm tabular-nums">{v.ctr != null ? `${num(v.ctr, locale)}%` : t("empty.none")}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -114,10 +114,10 @@ function VideoPanel({ id, connected, onClose }: { id: string; connected: boolean
       aside={<Button variant="outline" size="icon" onClick={onClose} aria-label={t("videos.close")}>✕</Button>}>
       <div className="mb-2 flex flex-wrap gap-7">
         <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("col.published")}</span><strong className="tabular-nums">{day(v.published_at, locale)}</strong></div>
-        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("videos.duration")}</span><strong className="tabular-nums">{secs(v.duration_s)}</strong></div>
+        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("videos.duration")}</span><strong className="tabular-nums">{secs(v.duration_s, locale)}</strong></div>
         <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("videos.total_views")}</span><strong className="tabular-nums">{num(v.views, locale)}</strong></div>
         <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("videos.last90")}</span><strong className="tabular-nums">{num(total90, locale)}</strong></div>
-        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("col.ctr")}</span><strong className="tabular-nums">{lastReach?.ctr != null ? `${num(lastReach.ctr, locale)}%` : "—"}</strong></div>
+        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("col.ctr")}</span><strong className="tabular-nums">{lastReach?.ctr != null ? `${num(lastReach.ctr, locale)}%` : t("empty.none")}</strong></div>
       </div>
 
       <div className="grid grid-cols-2 gap-5 max-[1000px]:grid-cols-1">
@@ -157,11 +157,11 @@ function VideoPanel({ id, connected, onClose }: { id: string; connected: boolean
               <LineChart data={d.retention.map((r) => ({ ...r, pct: Math.round(r.watch_ratio * 1000) / 10, t: r.ratio * v.duration_s }))}
                 margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--grid)" vertical={false} />
-                <XAxis dataKey="t" type="number" domain={[0, v.duration_s]} tickFormatter={(t) => secs(Number(t))}
+                <XAxis dataKey="t" type="number" domain={[0, v.duration_s]} tickFormatter={(value) => secs(Number(value), locale)}
                   tickLine={false} axisLine={false} tick={{ fill: "var(--text-2)", fontSize: 12 }} />
                 <YAxis unit="%" width={44} tickLine={false} axisLine={false} domain={[0, "auto"]}
                   tick={{ fill: "var(--text-2)", fontSize: 12 }} />
-                <Tooltip labelFormatter={(value) => secs(Number(value))} formatter={(x) => [`${x}%`, t("videos.still_watching")]}
+                <Tooltip labelFormatter={(value) => secs(Number(value), locale)} formatter={(x) => [`${x}%`, t("videos.still_watching")]}
                   contentStyle={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8 }}
                   itemStyle={{ color: "var(--text-1)" }} labelStyle={{ color: "var(--text-1)" }} />
                 <Line dataKey="pct" stroke="var(--series-1)" strokeWidth={2} dot={false} />

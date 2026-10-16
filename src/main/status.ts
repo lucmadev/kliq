@@ -30,6 +30,7 @@ export type Status = {
   syncing: boolean;
   next_sync: string | null;
   llm: { provider: string; enabled: boolean };
+  has_daily_reach: boolean;
 };
 
 export type Runtime = {
@@ -58,6 +59,7 @@ export function getStatus(db: Database.Database, runtime: Runtime): Status {
     syncing: runtime.syncing,
     next_sync: runtime.nextSync,
     llm: runtime.llm,
+    has_daily_reach: Boolean(db.prepare("SELECT 1 AS ok FROM reach_daily LIMIT 1").get()),
   };
 }
 

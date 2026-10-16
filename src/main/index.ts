@@ -8,7 +8,7 @@ import { currentLocale, registerIpc } from "./ipc";
 import { llmReady, summarizeReport } from "./llm";
 import { setSummarizer } from "./report";
 import { stopMcpServer, syncMcpWithSettings } from "./mcp";
-import { startDailySync } from "./schedule";
+import { startDailySync, syncedOnLocalDay } from "./schedule";
 import { loadSettings } from "./settings";
 import { runSync } from "./youtube";
 
@@ -58,6 +58,10 @@ export function createWindow(): BrowserWindow {
     minWidth: 880,
     minHeight: 640,
     show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    roundedCorners: true,
     autoHideMenuBar: true,
     title: "Kliq",
     webPreferences: {
@@ -68,6 +72,11 @@ export function createWindow(): BrowserWindow {
     },
   });
 
+  const sendMaximized = (value: boolean) => {
+    if (!win.isDestroyed()) win.webContents.send("window-maximized", value);
+  };
+  win.on("maximize", () => sendMaximized(true));
+  win.on("unmaximize", () => sendMaximized(false));
   win.on("ready-to-show", () => win.show());
   attachNavigationGuards(win);
 
@@ -88,11 +97,16 @@ app.whenReady().then(() => {
     summarize: (report) => summarizeReport(metaDatabase(), report, currentLocale()),
   });
   startDailySync({
-    read: () => {
-      const settings = loadSettings(metaDatabase());
-      return { tz: settings.tz, hour: settings.syncHour };
+    timeZone: () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    shouldRun: () => {
+      const db = peekDatabase();
+      if (!isConnected() || !db) return false;
+      const row = db
+        .prepare("SELECT finished_at FROM sync_log WHERE status = 'ok' ORDER BY id DESC LIMIT 1")
+        .get() as { finished_at: string | null } | undefined;
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      return !syncedOnLocalDay(row?.finished_at ?? null, new Date(), tz);
     },
-    shouldRun: () => isConnected() && peekDatabase() !== null,
     run: () => {
       const db = peekDatabase();
       if (db) void runSync(db);

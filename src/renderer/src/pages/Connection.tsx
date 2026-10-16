@@ -89,13 +89,7 @@ export default function Connection({ status, refresh, notify }: {
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-4">
       <Card title={t("conn.title")}>
-        <p className="text-[0.82rem] text-muted-foreground">{t("conn.missing_client")}</p>
-        <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void saveClient(e)}>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_id")} <Input value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_secret")} <Input type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
-          <Button variant="outline" disabled={busy}>{t("conn.save_client")}</Button>
-        </form>
-        <ul className="mt-4 flex flex-col gap-2">
+        <ul className="flex flex-col gap-2">
           {status.accounts.length === 0 && <li className="text-muted-foreground">{t("accounts.none")}</li>}
           {status.accounts.map((account) => (
             <li key={account.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
@@ -103,11 +97,9 @@ export default function Connection({ status, refresh, notify }: {
                 <strong>{account.title}</strong>
                 {account.active && <Badge className="ml-2">{t("accounts.active")}</Badge>}
                 <div className="text-[0.82rem] text-muted-foreground">
-                  {account.demo
-                    ? t("app.demo")
-                    : account.connected
-                      ? t("accounts.subscribers", { count: num(account.subscribers, locale) })
-                      : t("accounts.signed_out")}
+                  {account.connected || account.demo
+                    ? t("accounts.subscribers", { count: num(account.subscribers, locale) })
+                    : t("accounts.signed_out")}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -132,6 +124,17 @@ export default function Connection({ status, refresh, notify }: {
             {status.accounts.some((account) => account.connected) ? t("accounts.add") : t("conn.connect")}
           </Button>
         </div>
+        {!status.configured && (
+          <form className="mt-4 flex flex-wrap items-end gap-2.5 border-t pt-3" onSubmit={(e) => void saveClient(e)}>
+            <p className="w-full text-[0.82rem] text-muted-foreground">
+              {t("conn.missing_client")}{" "}
+              <a className="text-primary underline" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">{t("conn.console")}</a>
+            </p>
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_id")} <Input value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_secret")} <Input type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
+            <Button variant="outline" disabled={busy}>{t("conn.save_client")}</Button>
+          </form>
+        )}
         {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
 
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t pt-3.5 max-[620px]:grid-cols-1">
@@ -139,7 +142,6 @@ export default function Connection({ status, refresh, notify }: {
             <dt>{t("conn.facts_data")}</dt>
             <dd>
               {status.data_range ? `${day(status.data_range.from, locale)} → ${day(status.data_range.to, locale)}` : t("conn.no_data")}
-              {status.demo && ` (${t("app.demo")})`}
             </dd>
           </div>
           <div>
@@ -147,14 +149,11 @@ export default function Connection({ status, refresh, notify }: {
             <dd>
               {status.last_sync ? (
                 <>
-                  <span className={`mr-1 inline-block size-2 rounded-full ${status.last_sync.status === "ok" ? "bg-good" : status.last_sync.status === "error" ? "bg-critical" : "bg-primary"}`} /> {status.last_sync.status} · {status.last_sync.detail ?? ""}
+                  <span className={`mr-1 inline-block size-2 rounded-full ${status.last_sync.status === "ok" ? "bg-good" : status.last_sync.status === "error" ? "bg-critical" : "bg-primary"}`} />
+                  {status.last_sync.status === "ok" ? t("conn.sync_ok") : status.last_sync.status === "error" ? t("conn.sync_error") : t("conn.syncing")}
                 </>
               ) : t("conn.never")}
             </dd>
-          </div>
-          <div>
-            <dt>{t("conn.facts_next")}</dt>
-            <dd>{status.next_sync ? new Date(status.next_sync).toLocaleString(locale === "es" ? "es-AR" : "en-US") : t("conn.scheduler_off")}</dd>
           </div>
           <div>
             <dt>{t("conn.facts_ai")}</dt>
@@ -163,7 +162,7 @@ export default function Connection({ status, refresh, notify }: {
         </dl>
       </Card>
 
-      <CsvImport onDone={refresh} />
+      {!status.has_daily_reach && <CsvImport onDone={refresh} />}
     </div>
   );
 }
@@ -190,8 +189,10 @@ function CsvImport({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Card title={t("conn.csv_title")}>
-      <p className="text-[0.82rem] text-muted-foreground">{t("conn.csv_help")}</p>
+    <Card>
+      <details>
+        <summary className="cursor-pointer text-sm font-medium">{t("conn.csv_title")}</summary>
+      <p className="mt-2 text-[0.82rem] text-muted-foreground">{t("conn.csv_help")}</p>
       <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void submit(e)}>
         <label>{t("conn.from")} <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
         <label>{t("conn.to")} <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
@@ -199,6 +200,7 @@ function CsvImport({ onDone }: { onDone: () => void }) {
         <Button disabled={!file}>{t("conn.import")}</Button>
       </form>
       {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
+      </details>
     </Card>
   );
 }

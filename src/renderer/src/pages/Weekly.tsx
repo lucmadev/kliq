@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { CountingNumber } from "@/components/animate-ui/primitives/texts/counting-number";
+import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/animate/tabs";
 import { Button } from "@/components/animate-ui/components/buttons/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Report, type Status } from "../api";
 import RangeCalendar from "../components/RangeCalendar";
@@ -11,6 +13,7 @@ import { Card, Delta, Empty, Flag, MiniMarkdown } from "../components/ui";
 import type { MessageKey } from "../../../shared/i18n";
 import { day, num, range, secs, short } from "../format";
 import { useI18n } from "../i18n";
+import { fadeIn, revealOnce } from "../motion";
 
 type Props = { status: Status; onOpenVideo: (id: string) => void; onOpenModel: () => void };
 type Mode = "week" | "month" | "year" | "custom";
@@ -26,6 +29,7 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  const page = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.weeks().then((w) => {
@@ -52,6 +56,44 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
     setError(null);
     api.report(bounds).then(setReport).catch((e) => setError(e.message));
   }, [bounds, status.channel?.id]);
+
+  useEffect(() => {
+    if (page.current) fadeIn(page.current);
+  }, [mode, report?.week.start, report?.week.end]);
+
+  useLayoutEffect(() => {
+    const root = page.current;
+    if (!root) return;
+    const cards = [...root.querySelectorAll<HTMLElement>("section")];
+    const unseen = cards.filter((card) => card.dataset.revealed !== "1");
+    unseen.forEach((card) => { card.style.opacity = "0"; });
+    const scroller = root.closest(".overflow-auto");
+    const show = (card: HTMLElement, delay: number) => {
+      if (card.dataset.revealed === "1") return;
+      card.dataset.revealed = "1";
+      revealOnce(card, delay);
+    };
+    const revealPassed = () => {
+      const edge = (scroller instanceof HTMLElement ? scroller : document.documentElement).getBoundingClientRect().bottom;
+      unseen.forEach((card, index) => {
+        if (card.getBoundingClientRect().top < edge) show(card, index * 50);
+      });
+    };
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        show(entry.target as HTMLElement, unseen.indexOf(entry.target as HTMLElement) * 50);
+        io.unobserve(entry.target);
+      });
+    }, { root: scroller instanceof HTMLElement ? scroller : null, threshold: 0.15 });
+    unseen.forEach((card) => io.observe(card));
+    revealPassed();
+    scroller?.addEventListener("scroll", revealPassed, { passive: true });
+    return () => {
+      io.disconnect();
+      scroller?.removeEventListener("scroll", revealPassed);
+    };
+  }, [report?.week.start, report?.week.end]);
 
   if (error && !report) return <Empty>{error}</Empty>;
   if (!weeks.length && !report) return <Empty>{t("week.empty")}</Empty>;
@@ -83,26 +125,29 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={page} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3.5">
-        <div className="flex items-center gap-1">
-          {(["week", "month", "year", "custom"] as Mode[]).map((item) => (
-            <Button key={item} variant={mode === item ? "default" : "outline"} size="sm" onClick={() => pickMode(item)}>
-              {t(`period.${item}`)}
-            </Button>
-          ))}
-        </div>
+        <Tabs value={mode} onValueChange={(value) => pickMode(value as Mode)}>
+          <TabsList>
+            {(["week", "month", "year", "custom"] as Mode[]).map((item) => (
+              <TabsTrigger key={item} value={item}>{t(`period.${item}`)}</TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         {mode === "week" && (
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="icon" disabled={idx >= weeks.length - 1}
               onClick={() => setWeek(weeks[idx + 1])} aria-label={label("nav_previous")}>‹</Button>
-            <select className="rounded-md border bg-card px-2.5 py-1.5 text-sm" value={report.week.start} onChange={(e) => setWeek(e.target.value)}>
-              {weeks.map((w, i) => (
-                <option key={w} value={w}>
-                  {i === 0 ? t("week.latest_prefix") : ""}{range(w, addDays(w, 6), locale)}
-                </option>
-              ))}
-            </select>
+            <Select value={report.week.start} onValueChange={setWeek}>
+              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {weeks.map((w, i) => (
+                  <SelectItem key={w} value={w}>
+                    {i === 0 ? t("week.latest_prefix") : ""}{range(w, addDays(w, 6), locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="icon" disabled={idx <= 0}
               onClick={() => setWeek(weeks[idx - 1])} aria-label={label("nav_next")}>›</Button>
           </div>
@@ -148,11 +193,11 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
           <div className="flex flex-col gap-1 rounded-xl border bg-card p-3.5" key={k.key}>
             <span className="text-xs text-muted-foreground">{k.label}</span>
             <span className="text-[1.6rem] font-semibold tracking-tight max-[620px]:text-[1.3rem]">
-              {k.unit === "secs" ? secs(k.current) : <CountingNumber number={k.current} format={(value) => num(Math.round(value), locale)} />}
+              {k.unit === "secs" ? secs(k.current, locale) : <CountingNumber number={k.current} format={(value) => num(Math.round(value), locale)} />}
             </span>
             <span className="flex flex-wrap items-baseline gap-2 text-xs">
               <Delta value={k.delta_pct} />
-              <span className="text-muted-foreground">{t("col.before").toLowerCase()} {k.unit === "secs" ? secs(k.previous) : num(k.previous, locale)}</span>
+              <span className="text-muted-foreground">{t("col.before").toLowerCase()} {k.unit === "secs" ? secs(k.previous, locale) : num(k.previous, locale)}</span>
             </span>
           </div>
         ))}
@@ -240,7 +285,7 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
               })}</span>
               <span className="row-span-2 self-center text-right tabular-nums max-[620px]:row-auto max-[620px]:mt-1 max-[620px]:text-left">
                 <strong>{num(l.views, locale)}</strong>
-                <span className="text-muted-foreground"> {t("week.vs_baseline", { baseline: l.baseline != null ? num(Math.round(l.baseline), locale) : "—" })}</span>
+                <span className="text-muted-foreground"> {t("week.vs_baseline", { baseline: l.baseline != null ? num(Math.round(l.baseline), locale) : t("empty.none") })}</span>
                 {l.ratio != null && (
                   <span className={`ml-1.5 rounded-md px-1.5 font-mono text-sm font-semibold ${l.ratio >= 1 ? "bg-good/15 text-good" : "bg-critical/15 text-critical"}`}>{num(l.ratio, locale)}x</span>
                 )}
@@ -289,7 +334,7 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
                   <TableCell className="text-right font-mono text-sm tabular-nums">{num(v.views, locale)}</TableCell>
                   <TableCell className="text-right font-mono text-sm text-muted-foreground tabular-nums">{num(v.previous, locale)}</TableCell>
                   <TableCell className="text-right"><Delta value={v.delta_pct} /></TableCell>
-                  <TableCell className="text-right font-mono text-sm tabular-nums">{v.ratio_vs_median != null ? `${num(v.ratio_vs_median, locale)}x` : "—"}</TableCell>
+                  <TableCell className="text-right font-mono text-sm tabular-nums">{v.ratio_vs_median != null ? `${num(v.ratio_vs_median, locale)}x` : t("empty.none")}</TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{num(v.watch_hours, locale)}</TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{num(v.subs, locale)}</TableCell>
                 </TableRow>
@@ -302,7 +347,7 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
       <Card title={t("week.reach")}
         aside={report.reach ? <span className="text-[0.82rem] text-muted-foreground">{t("week.reach_aside", {
           range: range(report.reach.period_start, report.reach.period_end, locale),
-          ctr: report.reach.median_ctr != null ? num(report.reach.median_ctr, locale) : "—",
+          ctr: report.reach.median_ctr != null ? num(report.reach.median_ctr, locale) : t("empty.none"),
         })}</span> : null}>
         {report.reach ? (
           <div className="-mx-1 overflow-x-auto">
@@ -318,7 +363,7 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
                       <TableCell className="max-w-[460px]"><span className="inline-block max-w-[calc(100%-5.5rem)] truncate align-bottom">{r.title}</span>
                         {low && <span className="ml-1.5 inline-block rounded-md bg-critical/15 px-1.5 align-middle text-[0.7rem] font-semibold text-critical">▼ {t("flag.low_ctr")}</span>}</TableCell>
                       <TableCell className="text-right font-mono text-sm tabular-nums">{num(r.impressions, locale)}</TableCell>
-                      <TableCell className="text-right font-mono text-sm tabular-nums">{r.ctr != null ? `${num(r.ctr, locale)}%` : "—"}</TableCell>
+                      <TableCell className="text-right font-mono text-sm tabular-nums">{r.ctr != null ? `${num(r.ctr, locale)}%` : t("empty.none")}</TableCell>
                     </TableRow>
                   );
                 })}

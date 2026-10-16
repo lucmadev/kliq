@@ -36,7 +36,8 @@ export default function RangeCalendar({ open, onOpenChange, value, onApply }: {
   const previewEnd = start && !end ? hover : end;
   const [lo, hi] = ordered(start, previewEnd);
   const months = [month, addMonths(month, 1)];
-  const monthName = new Intl.DateTimeFormat(intlTag(locale), { month: "long", year: "numeric" });
+  const monthName = new Intl.DateTimeFormat(intlTag(locale), { month: "long" });
+  const yearName = new Intl.DateTimeFormat(intlTag(locale), { year: "numeric" });
 
   const pick = (iso: string) => {
     if (!picking.current) {
@@ -56,7 +57,7 @@ export default function RangeCalendar({ open, onOpenChange, value, onApply }: {
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <DialogPrimitive.Content className="fixed top-1/2 left-1/2 z-50 w-[min(42rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-4 text-card-foreground shadow-lg">
+        <DialogPrimitive.Content className="fixed top-1/2 left-1/2 z-50 w-[min(48rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-4 text-card-foreground shadow-lg">
           <DialogPrimitive.Title className="text-base font-semibold">{t("period.pick")}</DialogPrimitive.Title>
           <DialogPrimitive.Description className="mt-1 text-sm text-muted-foreground">
             {t("period.pick_help")}
@@ -72,7 +73,7 @@ export default function RangeCalendar({ open, onOpenChange, value, onApply }: {
           <div className="mt-2 grid gap-4 sm:grid-cols-2">
             {months.map((item) => (
               <div key={isoOf(item)}>
-                <div className="mb-2 text-center text-sm font-medium capitalize">{monthName.format(item)}</div>
+                <div className="mb-2 text-center text-sm font-medium capitalize">{monthName.format(item)} {yearName.format(item)}</div>
                 <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
                   {Array.from({ length: 7 }, (_, i) => (
                     <span key={i}>{t(`weekday.${i}` as MessageKey)}</span>
@@ -91,7 +92,7 @@ export default function RangeCalendar({ open, onOpenChange, value, onApply }: {
                         onMouseEnter={() => setHover(iso)}
                         onClick={() => pick(iso)}
                         className={cn(
-                          "h-8 rounded-md text-sm hover:bg-accent",
+                          "size-11 shrink-0 rounded-md text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                           inside && "bg-accent",
                           selected && "bg-primary text-primary-foreground hover:bg-primary",
                           iso === todayIso() && !selected && "ring-1 ring-primary",

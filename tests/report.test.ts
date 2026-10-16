@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { lastCompleteWeekStart } from "../src/main/dates";
 import { openDatabase } from "../src/main/db";
-import { buildRange, buildReport, availableWeeks, previousPeriod } from "../src/main/report";
+import { buildRange, buildReport, availableWeeks, previousPeriod, reachForPeriod } from "../src/main/report";
 import { seed } from "../src/main/seed";
 import { getReport, getStatus } from "../src/main/status";
 
@@ -64,6 +64,22 @@ describe("demo report", () => {
     expect(month?.search_terms).toEqual([]);
     expect(previousPeriod("2026-09-01", "2026-09-30")).toEqual({ start: "2026-08-01", end: "2026-08-31" });
     expect(previousPeriod("2026-01-01", "2026-12-31")).toEqual({ start: "2025-01-01", end: "2025-12-31" });
+    db.close();
+  });
+});
+
+describe("impressions", () => {
+  it("sums daily impressions and weights the click-through rate", () => {
+    const db = tempDb();
+    db.prepare("INSERT INTO reach_daily VALUES (?,?,?,?)").run("2026-05-04", "abcdefghijk", 100, 10);
+    db.prepare("INSERT INTO reach_daily VALUES (?,?,?,?)").run("2026-05-05", "abcdefghijk", 300, 2);
+    const daily = reachForPeriod(db, "2026-05-04", "2026-05-05");
+    expect(daily?.rows[0]?.impressions).toBe(400);
+    expect(daily?.rows[0]?.ctr).toBe(4);
+    db.prepare("INSERT INTO reach VALUES (?,?,?,?,?)").run("2026-04-01", "2026-04-30", "abcdefghijk", 50, 8);
+    const imported = reachForPeriod(db, "2026-04-10", "2026-04-12");
+    expect(imported?.rows[0]?.impressions).toBe(50);
+    expect(imported?.rows[0]?.ctr).toBe(8);
     db.close();
   });
 });

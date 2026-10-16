@@ -52,6 +52,11 @@ CREATE TABLE IF NOT EXISTS reach (
     PRIMARY KEY (period_start, period_end, video_id)
 );
 
+CREATE TABLE IF NOT EXISTS reach_daily (
+    date TEXT, video_id TEXT, impressions INTEGER, ctr REAL,
+    PRIMARY KEY (date, video_id)
+);
+
 CREATE TABLE IF NOT EXISTS reports (
     week_start TEXT PRIMARY KEY, created_at TEXT, data TEXT, summary TEXT
 );

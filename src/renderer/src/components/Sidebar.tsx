@@ -1,7 +1,7 @@
+import { useEffect, useRef } from "react";
 import {
   Cable,
   ChartColumn,
-  Clock,
   Clapperboard,
   KeyRound,
   Link2,
@@ -10,6 +10,7 @@ import {
   PanelLeftOpen,
   type LucideIcon,
 } from "lucide-react";
+import { slideWidth } from "../motion";
 import { cn } from "@/lib/utils";
 import { useI18n } from "../i18n";
 import type { MessageKey } from "../../../shared/i18n";
@@ -24,7 +25,6 @@ const main: { id: View; icon: LucideIcon; label: MessageKey }[] = [
 
 const settings: { id: SettingsSection; icon: LucideIcon; label: MessageKey }[] = [
   { id: "appearance", icon: Palette, label: "nav.appearance" },
-  { id: "schedule", icon: Clock, label: "nav.schedule" },
   { id: "model", icon: KeyRound, label: "nav.model" },
   { id: "mcp", icon: Cable, label: "nav.mcp" },
   { id: "connection", icon: Link2, label: "nav.connection" },
@@ -37,6 +37,13 @@ export default function Sidebar({ view, expanded, onExpand, onSelect }: {
   onSelect: (view: View) => void;
 }) {
   const { t } = useI18n();
+  const aside = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = aside.current;
+    if (!el) return;
+    el.classList.remove("w-16");
+    slideWidth(el, expanded ? 224 : 64);
+  }, [expanded]);
 
   const item = (id: View, Icon: LucideIcon, label: MessageKey) => (
     <button
@@ -46,7 +53,7 @@ export default function Sidebar({ view, expanded, onExpand, onSelect }: {
       aria-current={view === id ? "page" : undefined}
       onClick={() => onSelect(id)}
       className={cn(
-        "group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground",
+        "group relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         view === id && "bg-accent text-foreground",
       )}
     >
@@ -54,7 +61,7 @@ export default function Sidebar({ view, expanded, onExpand, onSelect }: {
       {expanded ? (
         <span className="truncate">{t(label)}</span>
       ) : (
-        <span className="pointer-events-none absolute left-full z-20 ml-2 hidden rounded-md border bg-popover px-2 py-1 text-xs whitespace-nowrap text-popover-foreground shadow group-hover:block">
+        <span className="pointer-events-none absolute left-full z-20 ml-2 hidden rounded-md border bg-popover px-2 py-1 text-xs whitespace-nowrap text-popover-foreground shadow group-hover:block group-focus-visible:block">
           {t(label)}
         </span>
       )}
@@ -62,12 +69,9 @@ export default function Sidebar({ view, expanded, onExpand, onSelect }: {
   );
 
   return (
-    <aside className={cn(
-      "sticky top-0 flex h-screen shrink-0 flex-col gap-1 border-r bg-card px-2 py-3",
-      expanded ? "w-56" : "w-16",
-    )}>
+    <aside ref={aside} className="flex h-full w-16 shrink-0 flex-col gap-1 overflow-hidden border-r bg-card px-2 py-3">
       <div className="mb-2 grid size-10 place-items-center rounded-[10px] bg-primary" aria-hidden>
-        <svg className="size-5 fill-none stroke-white stroke-[3]" viewBox="0 0 32 32"><path d="M8 22l6-7 4 4 6-9" /></svg>
+        <svg className="size-5 fill-none stroke-current text-primary-foreground stroke-[3]" viewBox="0 0 32 32"><path d="M8 22l6-7 4 4 6-9" /></svg>
       </div>
       {main.map((entry) => item(entry.id, entry.icon, entry.label))}
       <div className="mt-auto flex flex-col gap-1 border-t pt-2">
@@ -78,7 +82,7 @@ export default function Sidebar({ view, expanded, onExpand, onSelect }: {
           aria-label={t(expanded ? "nav.collapse" : "nav.expand")}
           title={t(expanded ? "nav.collapse" : "nav.expand")}
           onClick={() => onExpand(!expanded)}
-          className="flex h-10 items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           {expanded ? <PanelLeftClose className="size-4 shrink-0" /> : <PanelLeftOpen className="size-4 shrink-0" />}
           {expanded && <span>{t("nav.collapse")}</span>}

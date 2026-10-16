@@ -414,7 +414,7 @@ export function buildRange(db: Database.Database, start: string, end: string, lo
     }));
   }
 
-  const reach = latestReach(db, meta);
+  const reach = reachForPeriod(db, ws, we, meta);
   const report: Report = {
     week: { start: ws, end: we },
     previous_week: { start: ps, end: pe },
@@ -444,7 +444,72 @@ function utcMs(iso: string): number {
   return Date.UTC(y, m - 1, d);
 }
 
+export function reachForPeriod(
+  db: Database.Database,
+  start: string,
+  end: string,
+  meta?: Map<string, { title?: string }>,
+): Reach | null {
+  const titles = meta ?? new Map(
+    (db.prepare("SELECT id, title FROM videos").all() as { id: string; title: string }[]).map((row) => [row.id, row]),
+  );
+  const daily = db.prepare(
+    `SELECT video_id, SUM(impressions) AS impressions, SUM(impressions * COALESCE(ctr, 0)) AS weighted
+     FROM reach_daily WHERE date BETWEEN ? AND ? GROUP BY video_id HAVING impressions > 0
+     ORDER BY impressions DESC`,
+  ).all(start, end) as { video_id: string; impressions: number; weighted: number }[];
+  if (daily.length) {
+    const ctrs = daily.filter((row) => row.impressions >= 100).map((row) => row.weighted / row.impressions);
+    return {
+      period_start: start,
+      period_end: end,
+      median_ctr: ctrs.length ? round(median(ctrs), 2) : null,
+      rows: daily.slice(0, 20).map((row) => ({
+        video_id: row.video_id,
+        title: titles.get(row.video_id)?.title ?? row.video_id,
+        impressions: row.impressions,
+        ctr: row.impressions ? round(row.weighted / row.impressions, 2) : null,
+      })),
+    };
+  }
+  const block = db.prepare(
+    `SELECT period_start, period_end FROM reach
+     WHERE period_start <= ? AND period_end >= ?
+     ORDER BY period_end DESC, period_start DESC LIMIT 1`,
+  ).get(end, start) as { period_start: string; period_end: string } | undefined;
+  if (!block) return null;
+  return reachBlock(db, block.period_start, block.period_end, titles);
+}
+
+function reachBlock(
+  db: Database.Database,
+  start: string,
+  end: string,
+  titles: Map<string, { title?: string }>,
+): Reach {
+  const rows = db.prepare(
+    "SELECT video_id, impressions, ctr FROM reach WHERE period_start=? AND period_end=? ORDER BY impressions DESC",
+  ).all(start, end) as { video_id: string; impressions: number; ctr: number | null }[];
+  const ctrs = rows.filter((row) => row.ctr != null && row.impressions >= 100).map((row) => row.ctr as number);
+  return {
+    period_start: start,
+    period_end: end,
+    median_ctr: ctrs.length ? round(median(ctrs), 2) : null,
+    rows: rows.slice(0, 20).map((row) => ({
+      video_id: row.video_id,
+      title: titles.get(row.video_id)?.title ?? row.video_id,
+      impressions: row.impressions,
+      ctr: row.ctr,
+    })),
+  };
+}
+
 export function latestReach(db: Database.Database, meta?: Map<string, { title?: string }>): Reach | null {
+  const span = db.prepare("SELECT MIN(date) AS start, MAX(date) AS end FROM reach_daily").get() as {
+    start: string | null;
+    end: string | null;
+  };
+  if (span.start && span.end) return reachForPeriod(db, span.start, span.end, meta);
   const p = db
     .prepare("SELECT period_start, period_end FROM reach ORDER BY period_end DESC, period_start DESC LIMIT 1")
     .get() as { period_start: string; period_end: string } | undefined;
@@ -454,24 +519,7 @@ export function latestReach(db: Database.Database, meta?: Map<string, { title?: 
     new Map(
       (db.prepare("SELECT id, title FROM videos").all() as { id: string; title: string }[]).map((r) => [r.id, r]),
     );
-  const rows = db
-    .prepare(
-      "SELECT video_id, impressions, ctr FROM reach WHERE period_start=? AND period_end=? ORDER BY impressions DESC",
-    )
-    .all(p.period_start, p.period_end) as { video_id: string; impressions: number; ctr: number | null }[];
-  const ctrs = rows.filter((r) => r.ctr != null && r.impressions >= 100).map((r) => r.ctr as number);
-  const medCtr = ctrs.length ? round(median(ctrs), 2) : null;
-  return {
-    period_start: p.period_start,
-    period_end: p.period_end,
-    median_ctr: medCtr,
-    rows: rows.slice(0, 20).map((r) => ({
-      video_id: r.video_id,
-      title: titles.get(r.video_id)?.title ?? r.video_id,
-      impressions: r.impressions,
-      ctr: r.ctr,
-    })),
-  };
+  return reachBlock(db, p.period_start, p.period_end, titles);
 }
 
 function fmt(locale: Locale, n: number, digits = 0): string {

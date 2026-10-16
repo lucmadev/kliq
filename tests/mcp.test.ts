@@ -36,12 +36,13 @@ describe("mcp tools", () => {
     expect(TOOL_NAMES.join(" ")).not.toMatch(/sql|secret|token/i);
 
     const status = await runTool(db, "get_status", {});
-    const report = await runTool(db, "get_week_report", {});
+    const report = await runTool(db, "get_period_report", {});
     const videos = await runTool(db, "list_videos", { limit: 50 });
     const reach = await runTool(db, "get_reach", {});
     const log = await runTool(db, "get_sync_log", {});
-    const prompt = runPrompt(db, "weekly_review", {});
-    const dumped = JSON.stringify({ status, report, videos, reach, log, prompt });
+    const accounts = await runTool(db, "list_accounts", {});
+    const prompt = runPrompt(db, "period_review", {});
+    const dumped = JSON.stringify({ status, report, videos, reach, log, accounts, prompt });
     expect(dumped).not.toContain(REFRESH);
     expect(dumped).not.toContain(LLM_KEY);
     expect(dumped).not.toContain(BEARER);

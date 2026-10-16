@@ -1,21 +1,23 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/animate-ui/components/buttons/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/animate/tabs";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { LOCALES, type Locale } from "../../../shared/i18n";
-import { THEMES, type ThemeChoice } from "../../../shared/theme";
+import { ACCENTS, THEMES, type AccentId, type ThemeChoice } from "../../../shared/theme";
 import { api, type McpView, type SettingsView } from "../api";
 import { Card } from "../components/ui";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
 
-export type GeneralSection = "appearance" | "schedule" | "model" | "mcp";
+export type GeneralSection = "appearance" | "model" | "mcp";
 
-export default function General({ section, refresh }: { section: GeneralSection; refresh: () => void }) {
+export default function General({ section }: { section: GeneralSection; refresh: () => void }) {
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-4">
       {section === "appearance" && <AppearanceCard />}
-      {section === "schedule" && <ScheduleCard refresh={refresh} />}
-      {section === "model" && <ModelCard refresh={refresh} />}
+      {section === "model" && <ModelCard />}
       {section === "mcp" && <McpCard />}
     </div>
   );
@@ -23,77 +25,53 @@ export default function General({ section, refresh }: { section: GeneralSection;
 
 function AppearanceCard() {
   const { t, locale, setLocale } = useI18n();
-  const { theme, setTheme } = useTheme();
-  const field = "rounded-md border bg-card px-2 py-1 text-sm text-foreground";
+  const { theme, accent, setTheme, setAccent } = useTheme();
 
   return (
     <Card title={t("appearance.title")}>
-      <div className="mt-2.5 flex flex-wrap gap-2.5">
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          {t("lang.label")}
-          <select className={field} value={locale} onChange={(e) => void setLocale(e.target.value as Locale)}>
-            {LOCALES.map((code) => (
-              <option key={code} value={code}>{t(code === "en" ? "lang.en" : "lang.es")}</option>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-muted-foreground">{t("lang.label")}</span>
+          <Tabs value={locale} onValueChange={(value) => void setLocale(value as Locale)}>
+            <TabsList>
+              {LOCALES.map((code) => (
+                <TabsTrigger key={code} value={code}>{t(code === "en" ? "lang.en" : "lang.es")}</TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-muted-foreground">{t("theme.label")}</span>
+          <Tabs value={theme} onValueChange={(value) => void setTheme(value as ThemeChoice)}>
+            <TabsList>
+              {THEMES.map((choice) => (
+                <TabsTrigger key={choice} value={choice}>{t(`theme.${choice}`)}</TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-muted-foreground">{t("appearance.accent")}</span>
+          <div className="flex gap-2">
+            {ACCENTS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={item.id}
+                aria-pressed={accent === item.id}
+                className="size-11 rounded-full border-2 border-transparent ring-offset-2 ring-offset-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:ring-2 aria-pressed:ring-foreground"
+                style={{ background: item.light }}
+                onClick={() => void setAccent(item.id as AccentId)}
+              />
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          {t("theme.label")}
-          <select className={field} value={theme} onChange={(e) => void setTheme(e.target.value as ThemeChoice)}>
-            {THEMES.map((choice) => (
-              <option key={choice} value={choice}>{t(`theme.${choice}`)}</option>
-            ))}
-          </select>
-        </label>
+          </div>
+        </div>
       </div>
     </Card>
   );
 }
 
-function ScheduleCard({ refresh }: { refresh: () => void }) {
-  const { t } = useI18n();
-  const [form, setForm] = useState({ tz: "", syncHour: 6, syncDaysBack: 28, initialDaysBack: 120 });
-  const [msg, setMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    api.settings().then((settings) => {
-      setForm({
-        tz: settings.tz,
-        syncHour: settings.syncHour,
-        syncDaysBack: settings.syncDaysBack,
-        initialDaysBack: settings.initialDaysBack,
-      });
-    }).catch(() => undefined);
-  }, []);
-
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    const current = await api.settings();
-    try {
-      await api.saveSettings({ ...current, ...form });
-      setMsg(t("sched.saved"));
-      refresh();
-    } catch (err) {
-      setMsg((err as Error).message);
-    }
-  };
-
-  return (
-    <Card title={t("sched.title")}>
-      <p className="text-[0.82rem] text-muted-foreground">{t("sched.help")}</p>
-      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void save(e)}>
-        <label>{t("sched.hour")} <Input type="number" min={0} max={23} value={form.syncHour} onChange={(e) => setForm({ ...form, syncHour: Number(e.target.value) })} /></label>
-        <label>{t("sched.tz")} <Input type="text" value={form.tz} onChange={(e) => setForm({ ...form, tz: e.target.value })} /></label>
-        <label>{t("sched.days")} <Input type="number" min={1} max={365} value={form.syncDaysBack} onChange={(e) => setForm({ ...form, syncDaysBack: Number(e.target.value) })} /></label>
-        <label>{t("sched.initial")} <Input type="number" min={1} max={730} value={form.initialDaysBack} onChange={(e) => setForm({ ...form, initialDaysBack: Number(e.target.value) })} /></label>
-        <Button variant="outline">{t("byok.save")}</Button>
-      </form>
-      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
-    </Card>
-  );
-}
-
-function ModelCard({ refresh }: { refresh: () => void }) {
+function ModelCard() {
   const { t } = useI18n();
   const [settings, setSettings] = useState<SettingsView | null>(null);
   const [provider, setProvider] = useState<SettingsView["llmProvider"]>("none");
@@ -102,16 +80,14 @@ function ModelCard({ refresh }: { refresh: () => void }) {
   const [apiKey, setApiKey] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
-  const load = () => {
+  useEffect(() => {
     api.settings().then((next) => {
       setSettings(next);
       setProvider(next.llmProvider);
       setModel(next.llmModel);
       setBaseUrl(next.llmBaseUrl);
     }).catch(() => undefined);
-  };
-
-  useEffect(load, []);
+  }, []);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -126,18 +102,6 @@ function ModelCard({ refresh }: { refresh: () => void }) {
       }
       setApiKey("");
       setMsg(t("byok.saved"));
-      refresh();
-    } catch (err) {
-      setMsg((err as Error).message);
-    }
-  };
-
-  const clearKey = async () => {
-    try {
-      const key = await api.clearLlmKey();
-      setSettings((cur) => (cur ? { ...cur, ...key, enabled: cur.llmProvider === "compatible" } : cur));
-      setMsg(t("byok.key_missing"));
-      refresh();
     } catch (err) {
       setMsg((err as Error).message);
     }
@@ -147,29 +111,42 @@ function ModelCard({ refresh }: { refresh: () => void }) {
     <Card title={t("byok.title")}>
       <p className="text-[0.82rem] text-muted-foreground">{t("byok.help")}</p>
       <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void save(e)}>
-        <label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           {t("byok.provider")}
-          <select value={provider} onChange={(e) => setProvider(e.target.value as SettingsView["llmProvider"])}>
-            <option value="none">{t("byok.provider_none")}</option>
-            <option value="anthropic">{t("byok.provider_anthropic")}</option>
-            <option value="openai">{t("byok.provider_openai")}</option>
-            <option value="compatible">{t("byok.provider_compatible")}</option>
-          </select>
+          <Select value={provider} onValueChange={(value) => setProvider(value as SettingsView["llmProvider"])}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{t("byok.provider_none")}</SelectItem>
+              <SelectItem value="anthropic">{t("byok.provider_anthropic")}</SelectItem>
+              <SelectItem value="openai">{t("byok.provider_openai")}</SelectItem>
+              <SelectItem value="compatible">{t("byok.provider_compatible")}</SelectItem>
+            </SelectContent>
+          </Select>
         </label>
-        <label>{t("byok.model")} <Input type="text" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" /></label>
-        {provider === "compatible" && (
-          <label>{t("byok.base_url")} <Input type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>
-        )}
-        <label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           {t("byok.api_key")}
           <Input type="password" value={apiKey} placeholder={settings?.keyHint ? `••••${settings.keyHint}` : ""} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
         </label>
         <Button>{t("byok.save")}</Button>
-        {settings?.keySet && <Button type="button" variant="outline" onClick={() => void clearKey()}>{t("byok.clear")}</Button>}
       </form>
       <p className="text-[0.82rem] text-muted-foreground">
         {settings?.keySet ? t("byok.key_set", { hint: settings.keyHint ?? "" }) : t("byok.key_missing")}
       </p>
+      <details className="mt-3">
+        <summary className="cursor-pointer text-sm text-muted-foreground">{t("more.options")}</summary>
+        <div className="mt-2 flex flex-wrap gap-2.5">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            {t("byok.model")}
+            <Input type="text" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" />
+          </label>
+          {provider === "compatible" && (
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+              {t("byok.base_url")}
+              <Input type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+            </label>
+          )}
+        </div>
+      </details>
       {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
     </Card>
   );
@@ -191,16 +168,11 @@ function McpCard() {
     }).catch(() => undefined);
   }, []);
 
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    try {
-      const saved = await api.saveMcp({ enabled, port });
-      setView(saved.view);
-      setToken(saved.token ?? null);
-      setMsg(saved.view.running ? t("mcp.running", { url: saved.view.url ?? "" }) : t("mcp.stopped"));
-    } catch (err) {
-      setMsg((err as Error).message);
-    }
+  const persist = async (nextEnabled: boolean, nextPort = port) => {
+    const saved = await api.saveMcp({ enabled: nextEnabled, port: nextPort });
+    setView(saved.view);
+    setToken(saved.token ?? null);
+    setMsg(saved.view.running ? t("mcp.running") : t("mcp.stopped"));
   };
 
   const rotate = async () => {
@@ -226,22 +198,34 @@ function McpCard() {
   return (
     <Card title={t("mcp.title")}>
       <p className="text-[0.82rem] text-muted-foreground">{t("mcp.help")}</p>
-      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void save(e)}>
-        <label>
-          <input type="checkbox" className="size-4 accent-primary" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> {t("mcp.enable")}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <Switch
+            checked={enabled}
+            onCheckedChange={(checked) => {
+              setEnabled(checked);
+              void persist(checked).catch((err: Error) => setMsg(err.message));
+            }}
+          />
+          {t("mcp.enable")}
         </label>
-        <label>{t("mcp.port")} <Input type="number" min={1024} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} /></label>
-        <Button>{t("byok.save")}</Button>
-        <Button type="button" variant="outline" onClick={() => void rotate()}>{t("mcp.rotate")}</Button>
-        <Button type="button" variant="outline" onClick={() => void copy()} disabled={!view?.tokenHint}>{t("mcp.copy")}</Button>
-      </form>
-      <p className="text-[0.82rem] text-muted-foreground">{view?.running ? t("mcp.running", { url: view.url ?? "" }) : t("mcp.stopped")}</p>
-      {token && (
-        <>
-          <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{t("mcp.token_once")}</p>
-          <p><code>{token}</code></p>
-        </>
-      )}
+        {enabled && (
+          <Button type="button" variant="outline" onClick={() => void copy()} disabled={!view?.tokenHint}>{t("mcp.copy")}</Button>
+        )}
+      </div>
+      <details className="mt-3">
+        <summary className="cursor-pointer text-sm text-muted-foreground">{t("more.options")}</summary>
+        <form className="mt-2 flex flex-wrap items-end gap-2.5" onSubmit={(e) => { e.preventDefault(); void persist(enabled).catch((err: Error) => setMsg(err.message)); }}>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            {t("mcp.port")}
+            <Input type="number" min={1024} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
+          </label>
+          <Button type="submit" variant="outline">{t("byok.save")}</Button>
+          <Button type="button" variant="outline" onClick={() => void rotate()}>{t("mcp.rotate")}</Button>
+        </form>
+        {token && <p className="mt-2"><code>{token}</code></p>}
+      </details>
+      <p className="mt-2 text-[0.82rem] text-muted-foreground">{view?.running ? t("mcp.running") : t("mcp.stopped")}</p>
       {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
     </Card>
   );

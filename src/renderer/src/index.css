@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+html, body, #root {
+  height: 100%;
+  background: transparent;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -12,7 +17,7 @@
   --card-foreground: #0b0b0b;
   --popover: #ffffff;
   --popover-foreground: #0b0b0b;
-  --primary: #2a78d6;
+  --primary: #276fc5;
   --primary-foreground: #ffffff;
   --secondary: #ecebe7;
   --secondary-foreground: #0b0b0b;
@@ -23,8 +28,8 @@
   --destructive: #d03b3b;
   --border: #e3e2de;
   --input: #e3e2de;
-  --ring: #2a78d6;
-  --chart-1: #2a78d6;
+  --ring: #276fc5;
+  --chart-1: #276fc5;
   --chart-2: #a3a29c;
   --good: #0a8a0a;
   --critical: #d03b3b;
@@ -38,6 +43,11 @@
   --prev: var(--chart-2);
 }
 
+:root[data-accent="teal"] { --primary: #0d7972; --ring: #0d7972; --chart-1: #0d7972; --accent: #e4f6f4; }
+:root[data-accent="violet"] { --primary: #6d5bd0; --ring: #6d5bd0; --chart-1: #6d5bd0; --accent: #eeeafb; }
+:root[data-accent="rose"] { --primary: #bc4266; --ring: #bc4266; --chart-1: #bc4266; --accent: #fbeaf0; }
+:root[data-accent="amber"] { --primary: #976500; --ring: #976500; --chart-1: #976500; --accent: #fbf3e0; }
+
 .dark {
     color-scheme: dark;
     --background: #121211;
@@ -47,7 +57,7 @@
     --popover: #232321;
     --popover-foreground: #f0efec;
     --primary: #3987e5;
-    --primary-foreground: #ffffff;
+    --primary-foreground: #121211;
     --secondary: #232321;
     --secondary-foreground: #f0efec;
     --muted: #232321;
@@ -66,6 +76,14 @@
     --grid: #262624;
     --text-3: #8d8c85;
 }
+
+.dark[data-accent="teal"] { --primary: #2bb8ad; --ring: #2bb8ad; --chart-1: #2bb8ad; --accent: #163330; }
+.dark[data-accent="violet"] { --primary: #8b7ae8; --ring: #8b7ae8; --chart-1: #8b7ae8; --accent: #262043; }
+.dark[data-accent="rose"] { --primary: #e56b8c; --ring: #e56b8c; --chart-1: #e56b8c; --accent: #3a2230; }
+.dark[data-accent="amber"] { --primary: #e0a100; --ring: #e0a100; --chart-1: #e0a100; --accent: #3a2e14; }
+
+.titlebar { -webkit-app-region: drag; }
+.titlebar button { -webkit-app-region: no-drag; }
 
 @theme inline {
   --color-background: var(--background);

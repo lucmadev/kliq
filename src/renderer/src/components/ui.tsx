@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { motion } from "motion/react";
 import { Card as ShadcnCard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pct } from "../format";
 import { useI18n } from "../i18n";
@@ -52,11 +51,7 @@ export function Card({ title, aside, children, className = "" }: {
   className?: string;
 }) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
-    >
+    <section>
       <ShadcnCard className={`gap-3 py-4 ${className}`}>
         {(title || aside) && (
           <CardHeader className="flex flex-row items-center justify-between gap-3 px-4">
@@ -66,7 +61,7 @@ export function Card({ title, aside, children, className = "" }: {
         )}
         <CardContent className="px-4">{children}</CardContent>
       </ShadcnCard>
-    </motion.section>
+    </section>
   );
 }
 

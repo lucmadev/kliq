@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { clipboard, ipcMain } from "electron";
+import { BrowserWindow, clipboard, ipcMain } from "electron";
 import {
   activateAccount,
   activeAccountId,
@@ -14,7 +14,7 @@ import { AppError } from "./errors";
 import { getRangeReport, getReport, getStatus, getWeeks, type Runtime } from "./status";
 import { seed } from "./seed";
 import { isLocale, translate, type Locale } from "../shared/i18n";
-import { isTheme, type ThemeChoice } from "../shared/theme";
+import { isAccent, isTheme, type AccentId, type ThemeChoice } from "../shared/theme";
 import { listVideos, videoDetail } from "./videos";
 import { importReach } from "./csv";
 import { buildRange, buildReport, isCalendarWeek, latestReach, saveReport } from "./report";
@@ -23,7 +23,7 @@ import { startLogin } from "./oauth";
 import { fetchRetention, isRunning, runSync } from "./youtube";
 import { clearLlmKey, llmReady, saveLlmKey, settingsView, summarizeReport, updateSettings } from "./llm";
 import { loadSettings } from "./settings";
-import { nextSyncIso, rescheduleDailySync } from "./schedule";
+import { nextSyncIso } from "./schedule";
 import { configureMcp, mcpConfigText, mcpView, rotateMcpToken } from "./mcp";
 
 function prefs(): Database.Database {
@@ -73,6 +73,13 @@ export function currentTheme(): ThemeChoice {
   return isTheme(stored) ? stored : "system";
 }
 
+export function currentAccent(): AccentId {
+  const db = metaReady() ? metaDatabase() : peekDatabase();
+  if (!db) return "blue";
+  const stored = kvGet(db, "accent");
+  return isAccent(stored) ? stored : "blue";
+}
+
 export function registerIpc(): void {
   handle("locale", () => currentLocale());
   handle("set-locale", (value) => {
@@ -85,6 +92,27 @@ export function registerIpc(): void {
     if (!isTheme(value)) throw new AppError(translate(currentLocale(), "error.generic"));
     kvSet(prefs(), "theme", value);
     return value;
+  });
+  handle("accent", () => currentAccent());
+  handle("set-accent", (value) => {
+    if (!isAccent(value)) throw new AppError(translate(currentLocale(), "error.generic"));
+    kvSet(prefs(), "accent", value);
+    return value;
+  });
+  handle("window-minimize", () => {
+    BrowserWindow.getFocusedWindow()?.minimize();
+    return true;
+  });
+  handle("window-toggle-maximize", () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return false;
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+    return win.isMaximized();
+  });
+  handle("window-close", () => {
+    BrowserWindow.getFocusedWindow()?.close();
+    return true;
   });
   handle("status", () => {
     const db = peekDatabase();
@@ -101,6 +129,7 @@ export function registerIpc(): void {
         syncing: isRunning(),
         next_sync: nextSyncIso(),
         llm: { provider: settings.llmProvider, enabled: llmReady(settings) },
+        has_daily_reach: false,
         accounts: listAccountViews(),
       };
     }
@@ -172,9 +201,7 @@ export function registerIpc(): void {
   });
   handle("settings", () => settingsView(prefs()));
   handle("save-settings", (payload) => {
-    const view = updateSettings(prefs(), payload, currentLocale());
-    rescheduleDailySync();
-    return view;
+    return updateSettings(prefs(), payload, currentLocale());
   });
   handle("save-llm-key", (key) => saveLlmKey(String(key ?? ""), currentLocale()));
   handle("clear-llm-key", () => clearLlmKey(currentLocale()));

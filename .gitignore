@@ -8,3 +8,5 @@ release/
 __pycache__/
 .pytest_cache/
 *.tsbuildinfo
+.cursor/
+anti-slop

@@ -1,11 +1,9 @@
-/** Daily sync while the app is open. Fires at minute 7 of the configured hour. */
-
-const MINUTE = 7;
+/** Sync once per local calendar day while the app is open. */
 
 type ZoneParts = { y: number; m: number; d: number; h: number; min: number };
 
 export type DailySyncDeps = {
-  read: () => { tz: string; hour: number };
+  timeZone: () => string;
   shouldRun: () => boolean;
   run: () => void;
 };
@@ -48,12 +46,7 @@ function zonedToUtc(y: number, m: number, d: number, hour: number, minute: numbe
   return new Date(guess - zoneOffsetMs(corrected, tz));
 }
 
-function addCalendarDay(parts: ZoneParts): ZoneParts {
-  const next = new Date(Date.UTC(parts.y, parts.m - 1, parts.d + 1));
-  return { y: next.getUTCFullYear(), m: next.getUTCMonth() + 1, d: next.getUTCDate(), h: 0, min: 0 };
-}
-
-function safeZone(tz: string): string {
+export function safeZone(tz: string): string {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
     return tz;
@@ -62,24 +55,30 @@ function safeZone(tz: string): string {
   }
 }
 
-export function nextDailyRun(now: Date, tz: string, hour: number): Date {
+export function localDateKey(date: Date, tz: string): string {
+  const parts = zoneParts(date, safeZone(tz));
+  return `${parts.y}-${String(parts.m).padStart(2, "0")}-${String(parts.d).padStart(2, "0")}`;
+}
+
+export function nextLocalMidnight(now: Date, tz: string): Date {
   const zone = safeZone(tz);
-  const h = Math.min(23, Math.max(0, Math.trunc(hour)));
   const parts = zoneParts(now, zone);
-  let at = zonedToUtc(parts.y, parts.m, parts.d, h, MINUTE, zone);
-  if (at.getTime() <= now.getTime()) {
-    const tomorrow = addCalendarDay(parts);
-    at = zonedToUtc(tomorrow.y, tomorrow.m, tomorrow.d, h, MINUTE, zone);
-  }
-  return at;
+  const next = new Date(Date.UTC(parts.y, parts.m - 1, parts.d + 1));
+  return zonedToUtc(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), 0, 0, zone);
+}
+
+export function syncedOnLocalDay(finishedAt: string | null, now: Date, tz: string): boolean {
+  if (!finishedAt) return false;
+  const when = new Date(finishedAt);
+  if (Number.isNaN(when.getTime())) return false;
+  return localDateKey(when, tz) === localDateKey(now, tz);
 }
 
 function arm(): void {
   if (!deps) return;
   if (timer) clearTimeout(timer);
-  const { tz, hour } = deps.read();
-  nextAt = nextDailyRun(new Date(), tz, hour);
-  const delay = Math.max(0, nextAt.getTime() - Date.now());
+  nextAt = nextLocalMidnight(new Date(), deps.timeZone());
+  const delay = Math.max(1000, nextAt.getTime() - Date.now());
   timer = setTimeout(() => {
     if (deps?.shouldRun()) deps.run();
     arm();
@@ -89,11 +88,8 @@ function arm(): void {
 
 export function startDailySync(next: DailySyncDeps): void {
   deps = next;
+  if (next.shouldRun()) next.run();
   arm();
-}
-
-export function rescheduleDailySync(): void {
-  if (deps) arm();
 }
 
 export function nextSyncIso(): string | null {
