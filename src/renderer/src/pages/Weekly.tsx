@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -6,16 +6,23 @@ import { CountingNumber } from "@/components/animate-ui/primitives/texts/countin
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Report, type Status } from "../api";
+import RangeCalendar from "../components/RangeCalendar";
 import { Card, Delta, Empty, Flag, MiniMarkdown } from "../components/ui";
+import type { MessageKey } from "../../../shared/i18n";
 import { day, num, range, secs, short } from "../format";
 import { useI18n } from "../i18n";
 
 type Props = { status: Status; onOpenVideo: (id: string) => void; onOpenModel: () => void };
+type Mode = "week" | "month" | "year" | "custom";
 
 export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
   const { t, locale } = useI18n();
+  const [mode, setMode] = useState<Mode>("week");
   const [weeks, setWeeks] = useState<string[]>([]);
   const [week, setWeek] = useState<string | undefined>();
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [custom, setCustom] = useState({ start: "", end: "" });
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -25,23 +32,48 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
       setWeeks(w);
       setWeek(w[0]);
     }).catch((e) => setError(e.message));
-  }, [status.channel?.id]);
+    const end = status.data_range?.to;
+    if (end) {
+      setAnchor(`${end.slice(0, 7)}-01`);
+      setCustom({ start: status.data_range?.from ?? end, end });
+    }
+  }, [status.channel?.id, status.data_range?.from, status.data_range?.to]);
+
+  const bounds = useMemo(() => {
+    if (mode === "week") return week ?? null;
+    if (mode === "month" && anchor) return { start: anchor, end: monthEnd(anchor) };
+    if (mode === "year" && anchor) return { start: `${anchor.slice(0, 4)}-01-01`, end: `${anchor.slice(0, 4)}-12-31` };
+    if (mode === "custom" && custom.start && custom.end && custom.start <= custom.end) return custom;
+    return null;
+  }, [mode, week, anchor, custom]);
 
   useEffect(() => {
-    if (!week) return;
+    if (!bounds) return;
     setError(null);
-    api.report(week).then(setReport).catch((e) => setError(e.message));
-  }, [week, status.channel?.id]);
+    api.report(bounds).then(setReport).catch((e) => setError(e.message));
+  }, [bounds, status.channel?.id]);
 
   if (error && !report) return <Empty>{error}</Empty>;
   if (!weeks.length && !report) return <Empty>{t("week.empty")}</Empty>;
   if (!report) return <div className="p-12 text-center text-muted-foreground">{t("week.loading")}</div>;
 
+  const pickMode = (next: Mode) => {
+    const end = status.data_range?.to;
+    if (end && next === "month") setAnchor(`${end.slice(0, 7)}-01`);
+    if (end && next === "year") setAnchor(`${end.slice(0, 4)}-01-01`);
+    setMode(next);
+    if (next === "custom") setPickerOpen(true);
+  };
+  const label = (slot: string) => t(`period.${slot}.${mode}` as MessageKey);
+  const spanDays = report ? daysBetween(report.week.start, report.week.end) + 1 : 0;
+  const currentRange = range(report.week.start, report.week.end, locale);
+  const previousRange = range(report.previous_week.start, report.previous_week.end, locale);
+
   const idx = weeks.indexOf(report.week.start);
   const summarize = async () => {
     setSummarizing(true);
     try {
-      const { summary } = await api.summarize(report.week.start);
+      const { summary } = await api.summarize(bounds ?? report.week.start);
       setReport({ ...report, summary });
     } catch (e) {
       alert((e as Error).message);
@@ -53,19 +85,56 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3.5">
-        <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="icon" disabled={idx >= weeks.length - 1}
-            onClick={() => setWeek(weeks[idx + 1])} aria-label={t("week.previous")}>‹</Button>
-          <select className="rounded-md border bg-card px-2.5 py-1.5 text-sm" value={report.week.start} onChange={(e) => setWeek(e.target.value)}>
-            {weeks.map((w, i) => (
-              <option key={w} value={w}>
-                {i === 0 ? t("week.latest_prefix") : ""}{range(w, addDays(w, 6), locale)}
-              </option>
-            ))}
-          </select>
-          <Button variant="outline" size="icon" disabled={idx <= 0}
-            onClick={() => setWeek(weeks[idx - 1])} aria-label={t("week.next")}>›</Button>
+        <div className="flex items-center gap-1">
+          {(["week", "month", "year", "custom"] as Mode[]).map((item) => (
+            <Button key={item} variant={mode === item ? "default" : "outline"} size="sm" onClick={() => pickMode(item)}>
+              {t(`period.${item}`)}
+            </Button>
+          ))}
         </div>
+        {mode === "week" && (
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="icon" disabled={idx >= weeks.length - 1}
+              onClick={() => setWeek(weeks[idx + 1])} aria-label={label("nav_previous")}>‹</Button>
+            <select className="rounded-md border bg-card px-2.5 py-1.5 text-sm" value={report.week.start} onChange={(e) => setWeek(e.target.value)}>
+              {weeks.map((w, i) => (
+                <option key={w} value={w}>
+                  {i === 0 ? t("week.latest_prefix") : ""}{range(w, addDays(w, 6), locale)}
+                </option>
+              ))}
+            </select>
+            <Button variant="outline" size="icon" disabled={idx <= 0}
+              onClick={() => setWeek(weeks[idx - 1])} aria-label={label("nav_next")}>›</Button>
+          </div>
+        )}
+        {mode === "month" && anchor && (
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="icon" onClick={() => setAnchor(shiftMonth(anchor, -1))} aria-label={label("nav_previous")}>‹</Button>
+            <span className="text-sm">{anchor.slice(0, 7)}</span>
+            <Button variant="outline" size="icon" onClick={() => setAnchor(shiftMonth(anchor, 1))} aria-label={label("nav_next")}>›</Button>
+          </div>
+        )}
+        {mode === "year" && anchor && (
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="icon" onClick={() => setAnchor(shiftYear(anchor, -1))} aria-label={label("nav_previous")}>‹</Button>
+            <span className="text-sm">{anchor.slice(0, 4)}</span>
+            <Button variant="outline" size="icon" onClick={() => setAnchor(shiftYear(anchor, 1))} aria-label={label("nav_next")}>›</Button>
+          </div>
+        )}
+        {mode === "custom" && (
+          <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+            {custom.start && custom.end ? range(custom.start, custom.end, locale) : t("period.pick")}
+          </Button>
+        )}
+        <RangeCalendar
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          value={custom}
+          onApply={(start, end) => {
+            setCustom({ start, end });
+            setPickerOpen(false);
+          }}
+        />
         <span className="text-[0.82rem] text-muted-foreground">
           {t("week.vs", {
             range: range(report.previous_week.start, report.previous_week.end, locale),
@@ -90,12 +159,12 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-4 max-[1000px]:grid-cols-1">
-        <Card title={t("week.what")}>
+        <Card title={mode === "custom" ? t("period.what.between", { range: currentRange }) : label("what")}>
           {report.insights.length ? (
             <ul className="flex list-disc flex-col gap-2 pl-4 text-sm marker:text-primary">
               {report.insights.map((line, i) => <li key={i}>{line}</li>)}
             </ul>
-          ) : <Empty>{t("week.quiet")}</Empty>}
+          ) : <Empty>{mode === "custom" ? t("period.quiet.between", { range: currentRange }) : label("quiet")}</Empty>}
           <div className="mt-4 rounded-[10px] bg-accent p-3.5">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-xs font-semibold tracking-wide text-primary uppercase">{t("week.ai")}</span>
@@ -108,12 +177,12 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
               )}
             </div>
             {report.summary ? <MiniMarkdown text={report.summary} /> : (
-              <p className="text-[0.82rem] text-muted-foreground">{t("week.ai_pending")}</p>
+              <p className="text-[0.82rem] text-muted-foreground">{mode === "week" ? t("week.ai_pending") : mode === "custom" ? t("period.ai_between", { range: currentRange }) : t("period.ai_pending")}</p>
             )}
           </div>
         </Card>
 
-        <Card title={t("week.views_by_day")} aside={<span className="text-[0.82rem] text-muted-foreground">{t("week.vs_previous")}</span>}>
+        <Card title={t(spanDays > 62 ? "period.views_by_week" : "week.views_by_day")} aside={<span className="text-[0.82rem] text-muted-foreground">{mode === "custom" ? t("period.vs_dates", { current: currentRange, previous: previousRange }) : label("vs_chart")}</span>}>
           <div className="h-[340px]">
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={report.daily} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -129,9 +198,9 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
                   formatter={(v) => num(Number(v), locale)}
                 />
                 <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, color: "var(--text-2)" }} />
-                <Line name={t("week.series_previous")} dataKey="previous" stroke="var(--prev)" strokeWidth={2}
+                <Line name={mode === "custom" ? previousRange : label("series_previous")} dataKey="previous" stroke="var(--prev)" strokeWidth={2}
                   strokeDasharray="4 4" dot={false} activeDot={{ r: 4 }} />
-                <Line name={t("week.series_current")} dataKey="current" stroke="var(--series-1)" strokeWidth={2}
+                <Line name={mode === "custom" ? currentRange : label("series_current")} dataKey="current" stroke="var(--series-1)" strokeWidth={2}
                   dot={{ r: 3, strokeWidth: 0, fill: "var(--series-1)" }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -177,23 +246,27 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
                 )}
               </span>
             </button>
-          )) : <Empty>{t("week.no_launches")}</Empty>}
+          )) : <Empty>{mode === "custom" ? t("period.no_launches.between", { previous: previousRange, current: currentRange }) : label("no_launches")}</Empty>}
 
-          <h3 className="mt-4 mb-2 text-sm font-semibold text-muted-foreground">{t("week.searches")}</h3>
-          {report.search_terms.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {report.search_terms.slice(0, 16).map((s) => (
-                <span className={`rounded-full border bg-popover px-2.5 py-0.5 text-[0.82rem] ${s.is_new ? "border-primary" : ""}`} key={s.term} title={t("week.search_tip", { count: num(s.views, locale) })}>
-                  {s.is_new && <span className="text-xs text-primary">{t("delta.new")} · </span>}
-                  {s.term} <span className="text-muted-foreground">{short(s.views, locale)}</span>
-                </span>
-              ))}
-            </div>
-          ) : <Empty>{t("week.no_searches")}</Empty>}
+          {mode === "week" && (
+            <>
+              <h3 className="mt-4 mb-2 text-sm font-semibold text-muted-foreground">{t("week.searches")}</h3>
+              {report.search_terms.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {report.search_terms.slice(0, 16).map((s) => (
+                    <span className={`rounded-full border bg-popover px-2.5 py-0.5 text-[0.82rem] ${s.is_new ? "border-primary" : ""}`} key={s.term} title={t("week.search_tip", { count: num(s.views, locale) })}>
+                      {s.is_new && <span className="text-xs text-primary">{t("delta.new")} · </span>}
+                      {s.term} <span className="text-muted-foreground">{short(s.views, locale)}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : <Empty>{t("week.no_searches")}</Empty>}
+            </>
+          )}
         </Card>
       </div>
 
-      <Card title={t("week.videos")} aside={<span className="text-[0.82rem] text-muted-foreground">{t("week.median_aside", { count: num(report.median_week_views, locale) })}</span>}>
+      <Card title={mode === "custom" ? t("period.videos.between", { range: currentRange }) : label("videos")} aside={<span className="text-[0.82rem] text-muted-foreground">{t("week.median_aside", { count: num(report.median_week_views, locale) })}</span>}>
         <div className="-mx-1 overflow-x-auto">
           <Table>
             <TableHeader>
@@ -258,6 +331,28 @@ export default function Weekly({ status, onOpenVideo, onOpenModel }: Props) {
       </Card>
     </div>
   );
+}
+
+function daysBetween(a: string, b: string) {
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+}
+
+function monthEnd(start: string) {
+  const [y, m] = start.split("-").map(Number);
+  const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  return addDays(next, -1);
+}
+
+function shiftMonth(start: string, delta: number) {
+  const [y, m] = start.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return date.toISOString().slice(0, 10);
+}
+
+function shiftYear(start: string, delta: number) {
+  return `${Number(start.slice(0, 4)) + delta}-01-01`;
 }
 
 function addDays(iso: string, n: number) {
