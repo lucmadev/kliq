@@ -147,6 +147,8 @@ export const api = {
   seedDemo: () => window.kliq.seedDemo(),
   summarize: (payload: string | { start: string; end: string }) =>
     window.kliq.summarize(payload) as Promise<{ summary: string }>,
+  onboarded: () => window.kliq.onboarded(),
+  finishOnboard: () => window.kliq.finishOnboard() as Promise<{ ok: boolean }>,
   videos: () => window.kliq.videos(),
   video: (id: string) => window.kliq.video(id),
   retention: (id: string) => window.kliq.retention(id),

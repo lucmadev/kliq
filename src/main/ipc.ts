@@ -198,6 +198,11 @@ export function registerIpc(): void {
     if (isCalendarWeek(report.week.start, report.week.end)) saveReport(db, report, summary);
     return { summary };
   });
+  handle("onboarded", () => kvGet(prefs(), "onboarded") === "1");
+  handle("finish-onboard", () => {
+    kvSet(prefs(), "onboarded", "1");
+    return { ok: true };
+  });
 }
 
 function rangeOf(payload: unknown): { start: string; end: string } | null {
