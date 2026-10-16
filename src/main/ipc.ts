@@ -7,12 +7,14 @@ import { isLocale, translate, type Locale } from "../shared/i18n";
 import { listVideos, videoDetail } from "./videos";
 import { importReach } from "./csv";
 import { latestReach } from "./report";
+import { isConfigured, isConnected } from "./auth";
+import { fetchRetention, isRunning, runSync } from "./youtube";
 
 export function runtime(): Runtime {
   return {
-    configured: false,
-    connected: false,
-    syncing: false,
+    configured: isConfigured(),
+    connected: isConnected(),
+    syncing: isRunning(),
     nextSync: null,
     llm: { provider: "none", enabled: false },
   };
@@ -53,6 +55,18 @@ export function registerIpc(): void {
     return { imported };
   });
   handle("reach", () => latestReach(database()));
+  handle("sync", () => {
+    const locale = currentLocale();
+    if (!isConnected()) throw new AppError(translate(locale, "error.not_connected"));
+    if (isRunning()) return { started: false, reason: translate(locale, "error.sync_busy") };
+    void runSync(database());
+    return { started: true };
+  });
+  handle("retention", async (id) => {
+    const locale = currentLocale();
+    if (!isConnected()) throw new AppError(translate(locale, "error.not_connected"));
+    return { points: await fetchRetention(database(), String(id ?? ""), locale) };
+  });
   handle("seed-demo", async () => {
     const n = await seed(database());
     return { videos: n };
