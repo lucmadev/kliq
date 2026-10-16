@@ -1,17 +1,50 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { Input } from "@/components/ui/input";
+import { LOCALES, type Locale } from "../../../shared/i18n";
+import { THEMES, type ThemeChoice } from "../../../shared/theme";
 import { api, type McpView, type SettingsView } from "../api";
 import { Card } from "../components/ui";
 import { useI18n } from "../i18n";
+import { useTheme } from "../theme";
 
 export default function General({ refresh }: { refresh: () => void }) {
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-4">
+      <AppearanceCard />
       <ScheduleCard refresh={refresh} />
       <ModelCard refresh={refresh} />
       <McpCard />
     </div>
+  );
+}
+
+function AppearanceCard() {
+  const { t, locale, setLocale } = useI18n();
+  const { theme, setTheme } = useTheme();
+  const field = "rounded-md border bg-card px-2 py-1 text-sm text-foreground";
+
+  return (
+    <Card title={t("appearance.title")}>
+      <div className="mt-2.5 flex flex-wrap gap-2.5">
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          {t("lang.label")}
+          <select className={field} value={locale} onChange={(e) => void setLocale(e.target.value as Locale)}>
+            {LOCALES.map((code) => (
+              <option key={code} value={code}>{t(code === "en" ? "lang.en" : "lang.es")}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          {t("theme.label")}
+          <select className={field} value={theme} onChange={(e) => void setTheme(e.target.value as ThemeChoice)}>
+            {THEMES.map((choice) => (
+              <option key={choice} value={choice}>{t(`theme.${choice}`)}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </Card>
   );
 }
 

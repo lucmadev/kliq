@@ -8,14 +8,14 @@ import { api, type Status } from "./api";
 import Settings from "./pages/Settings";
 import Videos from "./pages/Videos";
 import Weekly from "./pages/Weekly";
+import { cn } from "@/lib/utils";
 import { num } from "./format";
 import { useI18n } from "./i18n";
-import { LOCALES, type Locale } from "../../shared/i18n";
 
 type Tab = "week" | "videos" | "settings";
 
 export default function App() {
-  const { t, locale, setLocale } = useI18n();
+  const { t, locale } = useI18n();
   const [tab, setTab] = useState<Tab>("week");
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,25 +89,26 @@ export default function App() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-[0.82rem] text-muted-foreground">
-            {t("lang.label")}
-            <select className="rounded-md border bg-card px-2 py-1 text-sm text-foreground" value={locale} onChange={(e) => void setLocale(e.target.value as Locale)}>
-              {LOCALES.map((code) => (
-                <option key={code} value={code}>{t(code === "en" ? "lang.en" : "lang.es")}</option>
-              ))}
-            </select>
-          </label>
+        <div className="flex items-center gap-2">
           <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
-            <TabsList className="max-[620px]:w-full">
+            <TabsList>
               {tabs.map((item) => (
                 <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
               ))}
-              <TabsTrigger value="settings" aria-label={t("tab.settings")}>
-                <SettingsIcon className="size-4" />
-              </TabsTrigger>
             </TabsList>
           </Tabs>
+          <button
+            type="button"
+            aria-label={t("tab.settings")}
+            aria-pressed={tab === "settings"}
+            onClick={() => setTab("settings")}
+            className={cn(
+              "grid size-9 place-items-center rounded-lg bg-muted text-muted-foreground",
+              tab === "settings" && "bg-background text-foreground shadow-sm ring-1 ring-border",
+            )}
+          >
+            <SettingsIcon className="size-4" />
+          </button>
         </div>
       </header>
 

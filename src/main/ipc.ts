@@ -14,6 +14,7 @@ import { AppError } from "./errors";
 import { getReport, getStatus, getWeeks, type Runtime } from "./status";
 import { seed } from "./seed";
 import { isLocale, translate, type Locale } from "../shared/i18n";
+import { isTheme, type ThemeChoice } from "../shared/theme";
 import { listVideos, videoDetail } from "./videos";
 import { importReach } from "./csv";
 import { buildReport, latestReach, saveReport } from "./report";
@@ -65,11 +66,24 @@ export function currentLocale(): Locale {
   return isLocale(stored) ? stored : "en";
 }
 
+export function currentTheme(): ThemeChoice {
+  const db = metaReady() ? metaDatabase() : peekDatabase();
+  if (!db) return "system";
+  const stored = kvGet(db, "theme");
+  return isTheme(stored) ? stored : "system";
+}
+
 export function registerIpc(): void {
   handle("locale", () => currentLocale());
   handle("set-locale", (value) => {
     if (!isLocale(value)) throw new AppError(translate(currentLocale(), "error.generic"));
     kvSet(prefs(), "locale", value);
+    return value;
+  });
+  handle("theme", () => currentTheme());
+  handle("set-theme", (value) => {
+    if (!isTheme(value)) throw new AppError(translate(currentLocale(), "error.generic"));
+    kvSet(prefs(), "theme", value);
     return value;
   });
   handle("status", () => {

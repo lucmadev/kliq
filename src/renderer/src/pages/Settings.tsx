@@ -11,14 +11,14 @@ export default function Settings({ status, refresh, notify }: {
   notify: (message: string) => void;
 }) {
   const { t } = useI18n();
-  const [section, setSection] = useState("connection");
+  const [section, setSection] = useState("general");
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs value={section} onValueChange={setSection}>
+      <Tabs value={section} onValueChange={setSection} className="items-center">
         <TabsList>
-          <TabsTrigger value="connection">{t("settings.connection")}</TabsTrigger>
           <TabsTrigger value="general">{t("settings.general")}</TabsTrigger>
+          <TabsTrigger value="connection">{t("settings.connection")}</TabsTrigger>
         </TabsList>
       </Tabs>
       {section === "general"

@@ -8,6 +8,11 @@ const en = {
   "lang.en": "English",
   "lang.es": "Español",
   "lang.label": "Language",
+  "appearance.title": "Appearance",
+  "theme.label": "Theme",
+  "theme.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
 
   "app.loading": "Loading…",
   "app.fatal": "Could not read local data: {error}",
@@ -274,6 +279,11 @@ const es: { [K in keyof typeof en]: string } = {
   "lang.en": "English",
   "lang.es": "Español",
   "lang.label": "Idioma",
+  "appearance.title": "Apariencia",
+  "theme.label": "Tema",
+  "theme.system": "Sistema",
+  "theme.light": "Claro",
+  "theme.dark": "Oscuro",
 
   "app.loading": "Cargando…",
   "app.fatal": "No pude leer los datos locales: {error}",

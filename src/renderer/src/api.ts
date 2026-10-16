@@ -1,4 +1,5 @@
 import type { Locale } from "../../shared/i18n";
+import type { ThemeChoice } from "../../shared/theme";
 
 export type Kpi = {
   key: string;
@@ -138,6 +139,8 @@ export type SettingsView = {
 export const api = {
   locale: () => window.kliq.locale(),
   setLocale: (locale: Locale) => window.kliq.setLocale(locale),
+  theme: () => window.kliq.theme(),
+  setTheme: (theme: ThemeChoice) => window.kliq.setTheme(theme),
   status: () => window.kliq.status(),
   weeks: () => window.kliq.weeks(),
   report: (week?: string) => window.kliq.report(week),

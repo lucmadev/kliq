@@ -1,10 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { Locale } from "../shared/i18n";
+import type { ThemeChoice } from "../shared/theme";
 
 const kliq = {
   version: "0.1.0",
   locale: (): Promise<Locale> => ipcRenderer.invoke("locale"),
   setLocale: (locale: Locale): Promise<Locale> => ipcRenderer.invoke("set-locale", locale),
+  theme: (): Promise<ThemeChoice> => ipcRenderer.invoke("theme"),
+  setTheme: (theme: ThemeChoice): Promise<ThemeChoice> => ipcRenderer.invoke("set-theme", theme),
   status: () => ipcRenderer.invoke("status"),
   weeks: () => ipcRenderer.invoke("weeks"),
   report: (week?: string) => ipcRenderer.invoke("report", week),
