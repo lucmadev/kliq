@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { Badge } from "@/components/ui/badge";
 import { api, type Status } from "./api";
+import Onboarding from "./components/Onboarding";
 import Sidebar, { type View } from "./components/Sidebar";
 import Settings from "./pages/Settings";
 import Videos from "./pages/Videos";
@@ -17,6 +18,7 @@ export default function App() {
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [video, setVideo] = useState<string | null>(null);
+  const [wizard, setWizard] = useState<"unknown" | "show" | "hide">("unknown");
 
   const refresh = useCallback(() => {
     api.status().then(setStatus).catch((e: Error) => setError(e.message));
@@ -27,8 +29,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh, locale]);
+    api.status()
+      .then(async (next) => {
+        setStatus(next);
+        if (wizard !== "unknown") return;
+        const done = await api.onboarded().catch(() => true);
+        setWizard(!done && !next.channel && !next.demo ? "show" : "hide");
+      })
+      .catch((e: Error) => setError(e.message));
+  }, [refresh, locale, wizard]);
 
   useEffect(() => {
     setVideo(null);
@@ -64,7 +73,7 @@ export default function App() {
   };
 
   if (error) return <div className="p-12 text-center text-muted-foreground">{t("app.fatal", { error })}</div>;
-  if (!status) return <div className="p-12 text-center text-muted-foreground">{t("app.loading")}</div>;
+  if (!status || wizard === "unknown") return <div className="p-12 text-center text-muted-foreground">{t("app.loading")}</div>;
 
   const hasData = !!status.data_range;
   const settingsView = view !== "analytics" && view !== "videos";
@@ -86,7 +95,9 @@ export default function App() {
           </div>
         </header>
 
-        {!hasData && !settingsView ? (
+        {wizard === "show" ? (
+          <Onboarding status={status} onDone={() => setWizard("hide")} notify={notify} />
+        ) : !hasData && !settingsView ? (
           <div className="flex flex-col items-center gap-2.5 px-5 py-20 text-center">
             <h1 className="text-[1.8rem] font-semibold tracking-tight">{t("onboard.title")}</h1>
             <p className="text-muted-foreground">{t("onboard.body")}</p>
