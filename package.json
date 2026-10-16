@@ -2,7 +2,7 @@
   "name": "kliq",
   "private": true,
   "version": "0.1.0",
-  "description": "Monitor semanal de tu canal de YouTube",
+  "description": "Weekly YouTube channel monitor",
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc -b --pretty false",
     "test": "ELECTRON_RUN_AS_NODE=1 vitest run",
+    "dist": "electron-vite build && electron-builder --linux",
     "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
@@ -19,7 +20,6 @@
     "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cn": "^0.4.0",
     "google-auth-library": "^11.3.1",
     "googleapis": "^186.0.0",
     "lucide-react": "^1.57.0",
@@ -43,9 +43,31 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
+  },
+  "build": {
+    "appId": "studio.nand.kliq",
+    "productName": "Kliq",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    }
   }
 }
