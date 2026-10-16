@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/animate/tabs";
+import { Button } from "@/components/animate-ui/components/buttons/button";
+import { Badge } from "@/components/ui/badge";
 import { api, type Status } from "./api";
 import Connection from "./pages/Connection";
 import Videos from "./pages/Videos";
@@ -14,7 +18,6 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("week");
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const [video, setVideo] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
@@ -27,7 +30,7 @@ export default function App() {
 
   useEffect(() => {
     return api.onAuth((result) => {
-      setToast(result.ok ? t("toast.connected") : result.message ?? t("error.oauth_generic"));
+      toast(result.ok ? t("toast.connected") : result.message ?? t("error.oauth_generic"));
       refresh();
     });
   }, [refresh, t]);
@@ -37,12 +40,6 @@ export default function App() {
     const timer = setInterval(refresh, 4000);
     return () => clearInterval(timer);
   }, [status?.syncing, refresh]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 6000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const openVideo = (id: string) => {
     setVideo(id);
@@ -60,8 +57,8 @@ export default function App() {
     }
   };
 
-  if (error) return <div className="fatal">{t("app.fatal", { error })}</div>;
-  if (!status) return <div className="loading">{t("app.loading")}</div>;
+  if (error) return <div className="p-12 text-center text-muted-foreground">{t("app.fatal", { error })}</div>;
+  if (!status) return <div className="p-12 text-center text-muted-foreground">{t("app.loading")}</div>;
 
   const hasData = !!status.data_range;
   const tabs: { id: Tab; label: string }[] = [
@@ -71,63 +68,61 @@ export default function App() {
   ];
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <span className="logo" aria-hidden>
-            <svg viewBox="0 0 32 32"><path d="M8 22l6-7 4 4 6-9" /></svg>
+    <div className="mx-auto max-w-[1240px] px-5 pb-12 max-[620px]:px-3.5">
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-background/90 py-4 backdrop-blur max-[620px]:flex-col max-[620px]:items-stretch">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary" aria-hidden>
+            <svg className="size-5 fill-none stroke-white stroke-[3]" viewBox="0 0 32 32"><path d="M8 22l6-7 4 4 6-9" /></svg>
           </span>
-          <div>
-            <div className="brand-name">{status.channel?.title ?? t("app.brand_fallback")}</div>
-            <div className="muted small">
+          <div className="min-w-0">
+            <div className="truncate text-[1.05rem] font-semibold">{status.channel?.title ?? t("app.brand_fallback")}</div>
+            <div className="text-[0.82rem] text-muted-foreground">
               {status.channel
                 ? t("app.subscribers", { count: num(status.channel.subscribers, locale) })
                 : t("app.no_channel")}
-              {status.demo && <span className="badge">{t("app.demo")}</span>}
-              {status.syncing && <span className="badge live">{t("app.syncing")}</span>}
+              {status.demo && <Badge variant="outline" className="ml-2">{t("app.demo")}</Badge>}
+              {status.syncing && <Badge className="ml-2">{t("app.syncing")}</Badge>}
             </div>
           </div>
         </div>
-        <div className="top-actions">
-          <label className="lang">
-            <span className="muted small">{t("lang.label")}</span>
-            <select value={locale} onChange={(e) => void setLocale(e.target.value as Locale)}>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-[0.82rem] text-muted-foreground">
+            {t("lang.label")}
+            <select className="rounded-md border bg-card px-2 py-1 text-sm text-foreground" value={locale} onChange={(e) => void setLocale(e.target.value as Locale)}>
               {LOCALES.map((code) => (
                 <option key={code} value={code}>{t(code === "en" ? "lang.en" : "lang.es")}</option>
               ))}
             </select>
           </label>
-          <nav className="tabs">
-            {tabs.map((item) => (
-              <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
-                {item.label}
-              </button>
-            ))}
-          </nav>
+          <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+            <TabsList className="max-[620px]:w-full">
+              {tabs.map((item) => (
+                <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
       </header>
 
       <main>
         {!hasData && tab !== "connection" ? (
-          <div className="onboarding">
-            <h1>{t("onboard.title")}</h1>
-            <p className="muted">{t("onboard.body")}</p>
-            <div className="btn-row">
-              <button className="btn" onClick={() => setTab("connection")}>{t("onboard.cta")}</button>
-              <button className="btn ghost" onClick={() => void loadDemo()}>{t("onboard.demo")}</button>
+          <div className="flex flex-col items-center gap-2.5 px-5 py-20 text-center">
+            <h1 className="text-[1.8rem] font-semibold tracking-tight">{t("onboard.title")}</h1>
+            <p className="text-muted-foreground">{t("onboard.body")}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setTab("connection")}>{t("onboard.cta")}</Button>
+              <Button variant="outline" onClick={() => void loadDemo()}>{t("onboard.demo")}</Button>
             </div>
-            <p className="muted small">{t("onboard.demo_hint")}</p>
+            <p className="text-[0.82rem] text-muted-foreground">{t("onboard.demo_hint")}</p>
           </div>
         ) : tab === "week" ? (
           <Weekly status={status} onOpenVideo={openVideo} />
         ) : tab === "videos" ? (
           <Videos status={status} selected={video} onSelect={setVideo} />
         ) : (
-          <Connection status={status} refresh={refresh} notify={setToast} />
+          <Connection status={status} refresh={refresh} notify={(message) => toast(message)} />
         )}
       </main>
-
-      {toast && <div className="toast" onClick={() => setToast(null)}>{toast}</div>}
     </div>
   );
 }

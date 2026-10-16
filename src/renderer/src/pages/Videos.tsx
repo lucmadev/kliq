@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
+import { Button } from "@/components/animate-ui/components/buttons/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Status, type VideoDetail, type VideoRow } from "../api";
 import { Card, Delta, Empty } from "../components/ui";
 import { day, num, secs, short } from "../format";
@@ -37,43 +40,43 @@ export default function Videos({ status, selected, onSelect }: {
   if (error) return <Empty>{error}</Empty>;
 
   const th = (key: SortKey, label: string) => (
-    <th className={`r sortable ${sort === key ? "active" : ""}`} onClick={() => setSort(key)}>
+    <TableHead className={`cursor-pointer text-right select-none ${sort === key ? "text-foreground" : ""}`} onClick={() => setSort(key)}>
       {label}{sort === key ? " ↓" : ""}
-    </th>
+    </TableHead>
   );
 
   return (
-    <div className="page">
+    <div className="flex flex-col gap-4">
       {selected && <VideoPanel id={selected} connected={status.connected} onClose={() => onSelect(null)} />}
 
       <Card title={t("videos.count", { count: rows.length })}
-        aside={<input className="search" placeholder={t("videos.search")} value={q} onChange={(e) => setQ(e.target.value)} />}>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{t("col.video")}</th>
+        aside={<Input className="w-[200px] max-[620px]:w-[130px]" placeholder={t("videos.search")} value={q} onChange={(e) => setQ(e.target.value)} />}>
+        <div className="-mx-1 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("col.video")}</TableHead>
                 {th("published_at", t("col.published"))}
                 {th("last7", t("col.last7"))}
                 {th("delta_pct", t("col.change"))}
                 {th("views", t("col.total"))}
                 {th("ctr", t("col.ctr"))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map((v) => (
-                <tr key={v.id} className={`clickable ${selected === v.id ? "selected" : ""}`}
+                <TableRow key={v.id} className={`cursor-pointer ${selected === v.id ? "bg-accent" : ""}`}
                   onClick={() => { onSelect(v.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                  <td className="title-cell"><span className="title-text">{v.title}</span></td>
-                  <td className="r muted">{day(v.published_at, locale)}</td>
-                  <td className="r num">{num(v.last7, locale)}</td>
-                  <td className="r"><Delta value={v.delta_pct} /></td>
-                  <td className="r num">{short(v.views, locale)}</td>
-                  <td className="r num">{v.ctr != null ? `${num(v.ctr, locale)}%` : "—"}</td>
-                </tr>
+                  <TableCell className="max-w-[460px] max-[620px]:max-w-[200px]"><span className="inline-block max-w-full truncate align-bottom">{v.title}</span></TableCell>
+                  <TableCell className="text-right text-muted-foreground">{day(v.published_at, locale)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm tabular-nums">{num(v.last7, locale)}</TableCell>
+                  <TableCell className="text-right"><Delta value={v.delta_pct} /></TableCell>
+                  <TableCell className="text-right font-mono text-sm tabular-nums">{short(v.views, locale)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm tabular-nums">{v.ctr != null ? `${num(v.ctr, locale)}%` : "—"}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </Card>
     </div>
@@ -88,7 +91,7 @@ function VideoPanel({ id, connected, onClose }: { id: string; connected: boolean
   const load = () => api.video(id).then(setD).catch((e) => alert(e.message));
   useEffect(() => { setD(null); load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!d) return <Card><div className="loading">{t("videos.loading")}</div></Card>;
+  if (!d) return <Card><div className="py-6 text-center text-muted-foreground">{t("videos.loading")}</div></Card>;
 
   const v = d.video;
   const total90 = d.daily.reduce((s, x) => s + x.views, 0);
@@ -106,20 +109,20 @@ function VideoPanel({ id, connected, onClose }: { id: string; connected: boolean
   };
 
   return (
-    <Card className="video-panel"
-      title={<a href={`https://youtu.be/${v.id}`} target="_blank" rel="noreferrer">{v.title} ↗</a>}
-      aside={<button className="icon-btn" onClick={onClose} aria-label={t("videos.close")}>✕</button>}>
-      <div className="mini-kpis">
-        <div><span className="kpi-label">{t("col.published")}</span><strong>{day(v.published_at, locale)}</strong></div>
-        <div><span className="kpi-label">{t("videos.duration")}</span><strong>{secs(v.duration_s)}</strong></div>
-        <div><span className="kpi-label">{t("videos.total_views")}</span><strong>{num(v.views, locale)}</strong></div>
-        <div><span className="kpi-label">{t("videos.last90")}</span><strong>{num(total90, locale)}</strong></div>
-        <div><span className="kpi-label">{t("col.ctr")}</span><strong>{lastReach?.ctr != null ? `${num(lastReach.ctr, locale)}%` : "—"}</strong></div>
+    <Card className="border-primary"
+      title={<a className="text-foreground no-underline hover:underline" href={`https://youtu.be/${v.id}`} target="_blank" rel="noreferrer">{v.title} ↗</a>}
+      aside={<Button variant="outline" size="icon" onClick={onClose} aria-label={t("videos.close")}>✕</Button>}>
+      <div className="mb-2 flex flex-wrap gap-7">
+        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("col.published")}</span><strong className="tabular-nums">{day(v.published_at, locale)}</strong></div>
+        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("videos.duration")}</span><strong className="tabular-nums">{secs(v.duration_s)}</strong></div>
+        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("videos.total_views")}</span><strong className="tabular-nums">{num(v.views, locale)}</strong></div>
+        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("videos.last90")}</span><strong className="tabular-nums">{num(total90, locale)}</strong></div>
+        <div className="flex flex-col"><span className="text-xs text-muted-foreground">{t("col.ctr")}</span><strong className="tabular-nums">{lastReach?.ctr != null ? `${num(lastReach.ctr, locale)}%` : "—"}</strong></div>
       </div>
 
-      <div className="grid-2 tight">
+      <div className="grid grid-cols-2 gap-5 max-[1000px]:grid-cols-1">
         <div>
-          <h3 className="sub">{t("videos.daily")}</h3>
+          <h3 className="mt-4 mb-2 text-sm font-semibold text-muted-foreground">{t("videos.daily")}</h3>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={d.daily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
@@ -141,12 +144,12 @@ function VideoPanel({ id, connected, onClose }: { id: string; connected: boolean
           </ResponsiveContainer>
         </div>
         <div>
-          <div className="sub-row">
-            <h3 className="sub">{t("videos.retention")}</h3>
+          <div className="mt-4 mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">{t("videos.retention")}</h3>
             {connected && (
-              <button className="btn ghost small" onClick={() => void refreshRetention()} disabled={loadingRet}>
+              <Button variant="outline" size="sm" onClick={() => void refreshRetention()} disabled={loadingRet}>
                 {loadingRet ? t("videos.fetching") : d.retention.length ? t("videos.refresh_retention") : t("videos.fetch_retention")}
-              </button>
+              </Button>
             )}
           </div>
           {d.retention.length ? (

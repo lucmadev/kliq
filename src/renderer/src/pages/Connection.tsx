@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Button } from "@/components/animate-ui/components/buttons/button";
+import { Input } from "@/components/ui/input";
 import { api, type McpView, type SettingsView, type Status } from "../api";
 import { Card } from "../components/ui";
 import { ago, day, num } from "../format";
@@ -72,19 +74,19 @@ export default function Connection({ status, refresh, notify }: {
   };
 
   return (
-    <div className="page narrow">
+    <div className="mx-auto flex max-w-[760px] flex-col gap-4">
       <Card title={t("conn.title")}>
-        <p className="muted small">{t("conn.missing_client")}</p>
-        <form className="csv-form" onSubmit={(e) => void saveClient(e)}>
-          <label>{t("conn.client_id")} <input value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
-          <label>{t("conn.client_secret")} <input type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
-          <button className="btn ghost" disabled={busy}>{t("conn.save_client")}</button>
+        <p className="text-[0.82rem] text-muted-foreground">{t("conn.missing_client")}</p>
+        <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void saveClient(e)}>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_id")} <Input value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_secret")} <Input type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
+          <Button variant="outline" disabled={busy}>{t("conn.save_client")}</Button>
         </form>
         {status.connected ? (
-          <div className="conn-row">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <strong>{status.channel?.title ?? t("app.brand_fallback")}</strong>
-              <div className="muted small">
+              <div className="text-[0.82rem] text-muted-foreground">
                 {status.channel && (
                   <>
                     {t("conn.subscribers_videos", {
@@ -96,22 +98,22 @@ export default function Connection({ status, refresh, notify }: {
                 {t("conn.last_sync_line", { when: ago(status.last_sync?.finished_at ?? status.last_sync?.started_at, locale) })}
               </div>
             </div>
-            <div className="btn-row">
-              <button className="btn" onClick={sync} disabled={busy || status.syncing}>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={sync} disabled={busy || status.syncing}>
                 {status.syncing ? t("conn.syncing") : t("conn.sync")}
-              </button>
-              <button className="btn ghost" onClick={() => void disconnect()}>{t("conn.disconnect")}</button>
+              </Button>
+              <Button variant="outline" onClick={() => void disconnect()}>{t("conn.disconnect")}</Button>
             </div>
           </div>
         ) : (
-          <div className="conn-row">
-            <p className="muted">{t("conn.readonly")}</p>
-            <button className="btn" onClick={() => void connect()} disabled={busy || !status.configured}>{t("conn.connect")}</button>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-muted-foreground">{t("conn.readonly")}</p>
+            <Button onClick={() => void connect()} disabled={busy || !status.configured}>{t("conn.connect")}</Button>
           </div>
         )}
-        {msg && <p className="notice">{msg}</p>}
+        {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
 
-        <dl className="facts">
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t pt-3.5 max-[620px]:grid-cols-1">
           <div>
             <dt>{t("conn.facts_data")}</dt>
             <dd>
@@ -124,7 +126,7 @@ export default function Connection({ status, refresh, notify }: {
             <dd>
               {status.last_sync ? (
                 <>
-                  <span className={`dot ${status.last_sync.status}`} /> {status.last_sync.status} · {status.last_sync.detail ?? ""}
+                  <span className={`mr-1 inline-block size-2 rounded-full ${status.last_sync.status === "ok" ? "bg-good" : status.last_sync.status === "error" ? "bg-critical" : "bg-primary"}`} /> {status.last_sync.status} · {status.last_sync.detail ?? ""}
                 </>
               ) : t("conn.never")}
             </dd>
@@ -178,15 +180,15 @@ function ScheduleCard({ refresh }: { refresh: () => void }) {
 
   return (
     <Card title={t("sched.title")}>
-      <p className="muted small">{t("sched.help")}</p>
-      <form className="csv-form" onSubmit={(e) => void save(e)}>
-        <label>{t("sched.hour")} <input type="number" min={0} max={23} value={form.syncHour} onChange={(e) => setForm({ ...form, syncHour: Number(e.target.value) })} /></label>
-        <label>{t("sched.tz")} <input type="text" value={form.tz} onChange={(e) => setForm({ ...form, tz: e.target.value })} /></label>
-        <label>{t("sched.days")} <input type="number" min={1} max={365} value={form.syncDaysBack} onChange={(e) => setForm({ ...form, syncDaysBack: Number(e.target.value) })} /></label>
-        <label>{t("sched.initial")} <input type="number" min={1} max={730} value={form.initialDaysBack} onChange={(e) => setForm({ ...form, initialDaysBack: Number(e.target.value) })} /></label>
-        <button className="btn ghost">{t("byok.save")}</button>
+      <p className="text-[0.82rem] text-muted-foreground">{t("sched.help")}</p>
+      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void save(e)}>
+        <label>{t("sched.hour")} <Input type="number" min={0} max={23} value={form.syncHour} onChange={(e) => setForm({ ...form, syncHour: Number(e.target.value) })} /></label>
+        <label>{t("sched.tz")} <Input type="text" value={form.tz} onChange={(e) => setForm({ ...form, tz: e.target.value })} /></label>
+        <label>{t("sched.days")} <Input type="number" min={1} max={365} value={form.syncDaysBack} onChange={(e) => setForm({ ...form, syncDaysBack: Number(e.target.value) })} /></label>
+        <label>{t("sched.initial")} <Input type="number" min={1} max={730} value={form.initialDaysBack} onChange={(e) => setForm({ ...form, initialDaysBack: Number(e.target.value) })} /></label>
+        <Button variant="outline">{t("byok.save")}</Button>
       </form>
-      {msg && <p className="notice">{msg}</p>}
+      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
     </Card>
   );
 }
@@ -243,8 +245,8 @@ function ModelCard({ refresh }: { refresh: () => void }) {
 
   return (
     <Card title={t("byok.title")}>
-      <p className="muted small">{t("byok.help")}</p>
-      <form className="csv-form" onSubmit={(e) => void save(e)}>
+      <p className="text-[0.82rem] text-muted-foreground">{t("byok.help")}</p>
+      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void save(e)}>
         <label>
           {t("byok.provider")}
           <select value={provider} onChange={(e) => setProvider(e.target.value as SettingsView["llmProvider"])}>
@@ -254,21 +256,21 @@ function ModelCard({ refresh }: { refresh: () => void }) {
             <option value="compatible">{t("byok.provider_compatible")}</option>
           </select>
         </label>
-        <label>{t("byok.model")} <input type="text" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" /></label>
+        <label>{t("byok.model")} <Input type="text" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" /></label>
         {provider === "compatible" && (
-          <label>{t("byok.base_url")} <input type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>
+          <label>{t("byok.base_url")} <Input type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>
         )}
         <label>
           {t("byok.api_key")}
-          <input type="password" value={apiKey} placeholder={settings?.keyHint ? `••••${settings.keyHint}` : ""} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
+          <Input type="password" value={apiKey} placeholder={settings?.keyHint ? `••••${settings.keyHint}` : ""} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
         </label>
-        <button className="btn">{t("byok.save")}</button>
-        {settings?.keySet && <button type="button" className="btn ghost" onClick={() => void clearKey()}>{t("byok.clear")}</button>}
+        <Button>{t("byok.save")}</Button>
+        {settings?.keySet && <Button type="button" variant="outline" onClick={() => void clearKey()}>{t("byok.clear")}</Button>}
       </form>
-      <p className="muted small">
+      <p className="text-[0.82rem] text-muted-foreground">
         {settings?.keySet ? t("byok.key_set", { hint: settings.keyHint ?? "" }) : t("byok.key_missing")}
       </p>
-      {msg && <p className="notice">{msg}</p>}
+      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
     </Card>
   );
 }
@@ -323,24 +325,24 @@ function McpCard() {
 
   return (
     <Card title={t("mcp.title")}>
-      <p className="muted small">{t("mcp.help")}</p>
-      <form className="csv-form" onSubmit={(e) => void save(e)}>
+      <p className="text-[0.82rem] text-muted-foreground">{t("mcp.help")}</p>
+      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void save(e)}>
         <label>
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> {t("mcp.enable")}
+          <input type="checkbox" className="size-4 accent-primary" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> {t("mcp.enable")}
         </label>
-        <label>{t("mcp.port")} <input type="number" min={1024} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} /></label>
-        <button className="btn">{t("byok.save")}</button>
-        <button type="button" className="btn ghost" onClick={() => void rotate()}>{t("mcp.rotate")}</button>
-        <button type="button" className="btn ghost" onClick={() => void copy()} disabled={!view?.tokenHint}>{t("mcp.copy")}</button>
+        <label>{t("mcp.port")} <Input type="number" min={1024} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} /></label>
+        <Button>{t("byok.save")}</Button>
+        <Button type="button" variant="outline" onClick={() => void rotate()}>{t("mcp.rotate")}</Button>
+        <Button type="button" variant="outline" onClick={() => void copy()} disabled={!view?.tokenHint}>{t("mcp.copy")}</Button>
       </form>
-      <p className="muted small">{view?.running ? t("mcp.running", { url: view.url ?? "" }) : t("mcp.stopped")}</p>
+      <p className="text-[0.82rem] text-muted-foreground">{view?.running ? t("mcp.running", { url: view.url ?? "" }) : t("mcp.stopped")}</p>
       {token && (
         <>
-          <p className="notice">{t("mcp.token_once")}</p>
+          <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{t("mcp.token_once")}</p>
           <p><code>{token}</code></p>
         </>
       )}
-      {msg && <p className="notice">{msg}</p>}
+      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
     </Card>
   );
 }
@@ -368,14 +370,14 @@ function CsvImport({ onDone }: { onDone: () => void }) {
 
   return (
     <Card title={t("conn.csv_title")}>
-      <p className="muted small">{t("conn.csv_help")}</p>
-      <form className="csv-form" onSubmit={(e) => void submit(e)}>
-        <label>{t("conn.from")} <input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-        <label>{t("conn.to")} <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-        <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        <button className="btn" disabled={!file}>{t("conn.import")}</button>
+      <p className="text-[0.82rem] text-muted-foreground">{t("conn.csv_help")}</p>
+      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void submit(e)}>
+        <label>{t("conn.from")} <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+        <label>{t("conn.to")} <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+        <input className="text-sm" type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <Button disabled={!file}>{t("conn.import")}</Button>
       </form>
-      {msg && <p className="notice">{msg}</p>}
+      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
     </Card>
   );
 }
