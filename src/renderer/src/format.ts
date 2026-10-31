@@ -56,3 +56,15 @@ export function ago(iso: string | null | undefined, locale: Locale) {
   if (diff < 86400) return t("ago.hours", { n: Math.round(diff / 3600) });
   return t("ago.days", { n: Math.round(diff / 86400) });
 }
+
+/** Four or five round, even steps with the top one above the maximum. */
+export function niceTicks(max: number) {
+  if (max <= 0) return [0, 1];
+  const raw = max / 4;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((m) => m >= raw) ?? 10 * mag;
+  const top = Math.ceil((max * 1.0001) / step) * step;
+  const out: number[] = [];
+  for (let v = 0; v <= top + step / 2; v += step) out.push(Math.round(v));
+  return out;
+}

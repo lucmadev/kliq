@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/animate-ui/components/buttons/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { api, type Status } from "../api";
-import { Card } from "../components/ui";
-import { day, num } from "../format";
+import { Pill, SettingsSection } from "../components/ui";
+
+const FIELD = "flex flex-col gap-2 text-sm font-medium";
+import { ago, day, num } from "../format";
 import { useI18n } from "../i18n";
 
 export default function Connection({ status, refresh, notify }: {
@@ -86,20 +88,39 @@ export default function Connection({ status, refresh, notify }: {
     }
   };
 
+  const syncState = status.last_sync?.status;
+  const facts: [string, ReactNode][] = [
+    [t("conn.facts_data"), status.data_range ? `${day(status.data_range.from, locale)} – ${day(status.data_range.to, locale)}` : t("conn.no_data")],
+    [t("conn.facts_last"), status.last_sync ? (
+      <span className="inline-flex items-center gap-2">
+        {syncState === "ok" ? <Pill tone="good">{t("conn.sync_ok")}</Pill> : syncState === "error" ? <Pill tone="bad">{t("conn.sync_error")}</Pill> : <Pill tone="tint">{t("conn.syncing")}</Pill>}
+        <span className="text-muted-foreground">{ago(status.last_sync.finished_at ?? status.last_sync.started_at, locale)}</span>
+      </span>
+    ) : t("conn.never")],
+    [t("conn.facts_ai"), status.llm.enabled ? status.llm.provider : t("conn.ai_off")],
+  ];
+
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-4">
-      <Card title={t("conn.title")}>
-        <ul className="flex flex-col gap-2">
-          {status.accounts.length === 0 && <li className="text-muted-foreground">{t("accounts.none")}</li>}
+    <div className="flex max-w-[1100px] flex-col">
+      <SettingsSection title={t("conn.title")} description={<>{t("conn.accounts_help")} {t("conn.readonly")}</>}>
+        <ul className="flex flex-col">
+          {status.accounts.length === 0 && <li className="text-sm text-muted-foreground">{t("accounts.none")}</li>}
           {status.accounts.map((account) => (
-            <li key={account.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
-              <div>
-                <strong>{account.title}</strong>
-                {account.active && <Badge className="ml-2">{t("accounts.active")}</Badge>}
-                <div className="text-[0.82rem] text-muted-foreground">
-                  {account.connected || account.demo
-                    ? t("accounts.subscribers", { count: num(account.subscribers, locale) })
-                    : t("accounts.signed_out")}
+            <li key={account.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-rule py-3 first:pt-0">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-tint-100 text-sm font-semibold text-tint-ink" aria-hidden>
+                  {account.title.trim().charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-medium">{account.title}</span>
+                    {account.active && <Pill tone="tint">{t("accounts.active")}</Pill>}
+                  </div>
+                  <div className="num text-[0.8125rem] text-muted-foreground">
+                    {account.connected || account.demo
+                      ? t("accounts.subscribers", { count: num(account.subscribers, locale) })
+                      : t("accounts.signed_out")}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -107,60 +128,47 @@ export default function Connection({ status, refresh, notify }: {
                   <Button variant="outline" disabled={busy || status.syncing} onClick={() => void activate(account.id)}>{t("accounts.use")}</Button>
                 )}
                 {account.active && account.connected && (
-                  <Button onClick={sync} disabled={busy || status.syncing}>
+                  <Button variant="outline" onClick={sync} disabled={busy || status.syncing}>
+                    <RefreshCw strokeWidth={1.75} />
                     {status.syncing ? t("conn.syncing") : t("conn.sync")}
                   </Button>
                 )}
                 {!account.demo && account.connected && (
-                  <Button variant="outline" onClick={() => void disconnect(account.id)}>{t("conn.disconnect")}</Button>
+                  <Button variant="ghost" className="text-critical hover:text-critical" onClick={() => void disconnect(account.id)}>{t("conn.disconnect")}</Button>
                 )}
               </div>
             </li>
           ))}
         </ul>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
-          <p className="text-muted-foreground">{t("conn.readonly")}</p>
+        <div className="mt-4 flex justify-end">
           <Button onClick={() => void connect()} disabled={busy || !status.configured}>
             {status.accounts.some((account) => account.connected) ? t("accounts.add") : t("conn.connect")}
           </Button>
         </div>
         {!status.configured && (
-          <form className="mt-4 flex flex-wrap items-end gap-2.5 border-t pt-3" onSubmit={(e) => void saveClient(e)}>
-            <p className="w-full text-[0.82rem] text-muted-foreground">
+          <form className="mt-4 flex flex-col gap-4 border-t border-rule pt-4" onSubmit={(e) => void saveClient(e)}>
+            <p className="text-sm text-muted-foreground">
               {t("conn.missing_client")}{" "}
-              <a className="text-primary underline" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">{t("conn.console")}</a>
+              <a className="font-medium text-tint-ink underline-offset-2 hover:underline" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">{t("conn.console")}</a>
             </p>
-            <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_id")} <Input value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
-            <label className="flex flex-col gap-1 text-xs text-muted-foreground">{t("conn.client_secret")} <Input type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
-            <Button variant="outline" disabled={busy}>{t("conn.save_client")}</Button>
+            <label className={FIELD}>{t("conn.client_id")} <Input className="h-10" value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
+            <label className={FIELD}>{t("conn.client_secret")} <Input className="h-10" type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
+            <div className="flex justify-end"><Button variant="outline" disabled={busy}>{t("conn.save_client")}</Button></div>
           </form>
         )}
-        {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
+        {msg && <p className="mt-3 text-sm text-muted-foreground" role="status">{msg}</p>}
+      </SettingsSection>
 
-        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t pt-3.5 max-[620px]:grid-cols-1">
-          <div>
-            <dt>{t("conn.facts_data")}</dt>
-            <dd>
-              {status.data_range ? `${day(status.data_range.from, locale)} → ${day(status.data_range.to, locale)}` : t("conn.no_data")}
-            </dd>
-          </div>
-          <div>
-            <dt>{t("conn.facts_last")}</dt>
-            <dd>
-              {status.last_sync ? (
-                <>
-                  <span className={`mr-1 inline-block size-2 rounded-full ${status.last_sync.status === "ok" ? "bg-good" : status.last_sync.status === "error" ? "bg-critical" : "bg-primary"}`} />
-                  {status.last_sync.status === "ok" ? t("conn.sync_ok") : status.last_sync.status === "error" ? t("conn.sync_error") : t("conn.syncing")}
-                </>
-              ) : t("conn.never")}
-            </dd>
-          </div>
-          <div>
-            <dt>{t("conn.facts_ai")}</dt>
-            <dd>{status.llm.enabled ? status.llm.provider : t("conn.ai_off")}</dd>
-          </div>
+      <SettingsSection title={t("conn.facts_title")} description={t("conn.facts_help")}>
+        <dl className="flex flex-col">
+          {facts.map(([label, value]) => (
+            <div key={label} className="flex min-h-10 items-center justify-between gap-4 border-b border-rule text-sm last:border-0">
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="num text-right font-medium">{value}</dd>
+            </div>
+          ))}
         </dl>
-      </Card>
+      </SettingsSection>
 
       {!status.has_daily_reach && <CsvImport onDone={refresh} />}
     </div>
@@ -189,18 +197,18 @@ function CsvImport({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Card>
-      <details>
-        <summary className="cursor-pointer text-sm font-medium">{t("conn.csv_title")}</summary>
-      <p className="mt-2 text-[0.82rem] text-muted-foreground">{t("conn.csv_help")}</p>
-      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void submit(e)}>
-        <label>{t("conn.from")} <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-        <label>{t("conn.to")} <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-        <input className="text-sm" type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        <Button disabled={!file}>{t("conn.import")}</Button>
+    <SettingsSection title={t("conn.csv_title")} description={t("conn.csv_help")}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => void submit(e)}>
+        <div className="grid grid-cols-2 gap-3">
+          <label className={FIELD}>{t("conn.from")} <Input className="num h-10" type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+          <label className={FIELD}>{t("conn.to")} <Input className="num h-10" type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+        </div>
+        <input className="text-sm file:mr-3 file:h-9 file:rounded-lg file:border file:border-input file:bg-card file:px-3 file:text-sm file:font-medium" type="file" accept=".csv,text/csv" aria-label={t("conn.csv_title")} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <div className="flex items-center justify-end gap-3">
+          {msg && <p className="text-sm text-muted-foreground" role="status">{msg}</p>}
+          <Button disabled={!file}>{t("conn.import")}</Button>
+        </div>
       </form>
-      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
-      </details>
-    </Card>
+    </SettingsSection>
   );
 }

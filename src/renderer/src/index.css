@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@fontsource-variable/dm-sans";
 
 html, body, #root {
   height: 100%;
@@ -8,82 +9,108 @@ html, body, #root {
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Accent ladder: the creator's chosen hue at full strength only on small marks (the primary
+ * button, the current data series, the active nav icon); its pale tints carry every area
+ * (the active nav row, the AI summary well, badges, bar tracks). Chrome stays neutral.
+ *   --primary      full hue (marks, the one filled button)
+ *   --tint-50/100/200  pale steps of the hue (areas)
+ *   --tint-ink     dark ink of the hue, for text on a tint
+ *   --background   ground, one step toward the hue's palest tint
+ */
 :root {
   color-scheme: light;
-  --radius: 0.75rem;
-  --background: #f4f4f2;
-  --foreground: #0b0b0b;
-  --card: #fcfcfb;
-  --card-foreground: #0b0b0b;
+  --radius: 0.625rem;
+  --background: #f7f9fc;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #0b0b0b;
+  --popover-foreground: #111111;
   --primary: #276fc5;
   --primary-foreground: #ffffff;
-  --secondary: #ecebe7;
-  --secondary-foreground: #0b0b0b;
-  --muted: #ecebe7;
-  --muted-foreground: #52514e;
-  --accent: #e7f0fb;
-  --accent-foreground: #0b0b0b;
-  --destructive: #d03b3b;
-  --border: #e3e2de;
-  --input: #e3e2de;
+  --secondary: #f2f3f5;
+  --secondary-foreground: #111111;
+  --muted: #f2f3f5;
+  --muted-foreground: #5f6368;
+  --accent: #f0f1f3;
+  --accent-foreground: #111111;
+  --destructive: #c4242a;
+  --border: #e8e8e8;
+  --input: #d1d5db;
   --ring: #276fc5;
-  --chart-1: #276fc5;
-  --chart-2: #a3a29c;
-  --good: #0a8a0a;
-  --critical: #d03b3b;
-  --warning: #b97c00;
-  --grid: #ecebe7;
+  --tint-50: #f3f7fd;
+  --tint-100: #e7f0fb;
+  --tint-200: #cfe0f5;
+  --tint-ink: #17457d;
+  --chart-1: var(--primary);
+  --chart-2: #9a9ca1;
+  --good: #247b50;
+  --critical: #c4242a;
+  --warning: #92400e;
+  --pill-good-bg: #dcfae5;
+  --pill-good-ink: #04250e;
+  --pill-bad-bg: #ffedea;
+  --pill-bad-ink: #831c1e;
+  --grid: #ececec;
+  --rule: #f0f0f0;
   --text-1: var(--foreground);
   --text-2: var(--muted-foreground);
-  --text-3: #8a8984;
+  --text-3: #6b6b6b;
   --surface-2: var(--popover);
   --series-1: var(--primary);
   --prev: var(--chart-2);
 }
 
-:root[data-accent="teal"] { --primary: #0d7972; --ring: #0d7972; --chart-1: #0d7972; --accent: #e4f6f4; }
-:root[data-accent="violet"] { --primary: #6d5bd0; --ring: #6d5bd0; --chart-1: #6d5bd0; --accent: #eeeafb; }
-:root[data-accent="rose"] { --primary: #bc4266; --ring: #bc4266; --chart-1: #bc4266; --accent: #fbeaf0; }
-:root[data-accent="amber"] { --primary: #976500; --ring: #976500; --chart-1: #976500; --accent: #fbf3e0; }
+:root[data-accent="teal"] { --background: #f6fbfa; --primary: #0d7972; --ring: #0d7972; --tint-50: #f2faf9; --tint-100: #e4f6f4; --tint-200: #c5ebe7; --tint-ink: #0a4d49; }
+:root[data-accent="violet"] { --background: #f9f8fd; --primary: #6d5bd0; --ring: #6d5bd0; --tint-50: #f7f5fd; --tint-100: #eeeafb; --tint-200: #dcd5f6; --tint-ink: #3e2f8f; }
+:root[data-accent="rose"] { --background: #fcf8f9; --primary: #bc4266; --ring: #bc4266; --tint-50: #fdf5f8; --tint-100: #fbeaf0; --tint-200: #f4cfdb; --tint-ink: #7d2440; }
+:root[data-accent="amber"] { --background: #f9f9f8; --primary: #976500; --ring: #976500; --tint-50: #fdf9ef; --tint-100: #fbf3e0; --tint-200: #f3e1b5; --tint-ink: #5e3f00; }
 
 .dark {
-    color-scheme: dark;
-    --background: #121211;
-    --foreground: #f0efec;
-    --card: #1a1a19;
-    --card-foreground: #f0efec;
-    --popover: #232321;
-    --popover-foreground: #f0efec;
-    --primary: #3987e5;
-    --primary-foreground: #121211;
-    --secondary: #232321;
-    --secondary-foreground: #f0efec;
-    --muted: #232321;
-    --muted-foreground: #c3c2b7;
-    --accent: #1d2c3d;
-    --accent-foreground: #f0efec;
-    --destructive: #e66767;
-    --border: #2e2e2b;
-    --input: #2e2e2b;
-    --ring: #3987e5;
-    --chart-1: #3987e5;
-    --chart-2: #6f6e68;
-    --good: #2dbb2d;
-    --critical: #e66767;
-    --warning: #fab219;
-    --grid: #262624;
-    --text-3: #8d8c85;
+  color-scheme: dark;
+  --background: #111111;
+  --foreground: #f5f5f5;
+  --card: #191919;
+  --card-foreground: #f5f5f5;
+  --popover: #222222;
+  --popover-foreground: #f5f5f5;
+  --primary: #3987e5;
+  --primary-foreground: #0b0b0b;
+  --secondary: #222222;
+  --secondary-foreground: #f5f5f5;
+  --muted: #222222;
+  --muted-foreground: #b4b4b4;
+  --accent: #262626;
+  --accent-foreground: #f5f5f5;
+  --destructive: #e5566f;
+  --border: #2a2a2a;
+  --input: #444444;
+  --ring: #3987e5;
+  --tint-50: #172231;
+  --tint-100: #1d2c3d;
+  --tint-200: #27405c;
+  --tint-ink: #a9cbf3;
+  --chart-2: #7a7a7a;
+  --good: #3fc07a;
+  --critical: #e5566f;
+  --warning: #f2b84b;
+  --pill-good-bg: #172a1d;
+  --pill-good-ink: #3fc07a;
+  --pill-bad-bg: #2c1a20;
+  --pill-bad-ink: #ef7d91;
+  --grid: #2b2b2b;
+  --rule: #222222;
+  --text-3: #949494;
 }
 
-.dark[data-accent="teal"] { --primary: #2bb8ad; --ring: #2bb8ad; --chart-1: #2bb8ad; --accent: #163330; }
-.dark[data-accent="violet"] { --primary: #8b7ae8; --ring: #8b7ae8; --chart-1: #8b7ae8; --accent: #262043; }
-.dark[data-accent="rose"] { --primary: #e56b8c; --ring: #e56b8c; --chart-1: #e56b8c; --accent: #3a2230; }
-.dark[data-accent="amber"] { --primary: #e0a100; --ring: #e0a100; --chart-1: #e0a100; --accent: #3a2e14; }
+.dark[data-accent="teal"] { --primary: #2bb8ad; --ring: #2bb8ad; --tint-50: #12231f; --tint-100: #163330; --tint-200: #1f4a45; --tint-ink: #8fe0d8; }
+.dark[data-accent="violet"] { --primary: #8b7ae8; --ring: #8b7ae8; --tint-50: #1c1830; --tint-100: #262043; --tint-200: #352d5e; --tint-ink: #c9c0f5; }
+.dark[data-accent="rose"] { --primary: #e56b8c; --ring: #e56b8c; --tint-50: #2a1922; --tint-100: #3a2230; --tint-200: #533044; --tint-ink: #f4b5c6; }
+.dark[data-accent="amber"] { --primary: #e0a100; --ring: #e0a100; --tint-50: #2a2210; --tint-100: #3a2e14; --tint-200: #54421c; --tint-ink: #f3d189; }
 
 .titlebar { -webkit-app-region: drag; }
-.titlebar button { -webkit-app-region: no-drag; }
+.titlebar button, .titlebar a, .titlebar input, .titlebar [role="tab"] { -webkit-app-region: no-drag; }
 
 @theme inline {
   --color-background: var(--background);
@@ -104,21 +131,33 @@ html, body, #root {
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-tint-50: var(--tint-50);
+  --color-tint-100: var(--tint-100);
+  --color-tint-200: var(--tint-200);
+  --color-tint-ink: var(--tint-ink);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-good: var(--good);
   --color-critical: var(--critical);
   --color-warning: var(--warning);
+  --color-pill-good: var(--pill-good-bg);
+  --color-pill-good-ink: var(--pill-good-ink);
+  --color-pill-bad: var(--pill-bad-bg);
+  --color-pill-bad-ink: var(--pill-bad-ink);
   --color-grid: var(--grid);
+  --color-rule: var(--rule);
+  --color-faint: var(--text-3);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --radius-2xl: 1rem;
+  --font-sans: "DM Sans Variable", "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground antialiased; }
+  body { @apply bg-background text-foreground antialiased; font-size: 14px; }
   button, input, select { font: inherit; }
+  .num, table, [data-num] { font-variant-numeric: tabular-nums; }
 }

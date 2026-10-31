@@ -7,7 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { LOCALES, type Locale } from "../../../shared/i18n";
 import { ACCENTS, THEMES, type AccentId, type ThemeChoice } from "../../../shared/theme";
 import { api, type McpView, type SettingsView } from "../api";
-import { Card } from "../components/ui";
+import { Copy } from "lucide-react";
+import { Pill, SettingsSection } from "../components/ui";
+
+const FIELD = "flex flex-col gap-2 text-sm font-medium";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
 
@@ -15,7 +18,7 @@ export type GeneralSection = "appearance" | "model" | "mcp";
 
 export default function General({ section }: { section: GeneralSection; refresh: () => void }) {
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-4">
+    <div className="flex max-w-[1100px] flex-col">
       {section === "appearance" && <AppearanceCard />}
       {section === "model" && <ModelCard />}
       {section === "mcp" && <McpCard />}
@@ -25,13 +28,11 @@ export default function General({ section }: { section: GeneralSection; refresh:
 
 function AppearanceCard() {
   const { t, locale, setLocale } = useI18n();
-  const { theme, accent, setTheme, setAccent } = useTheme();
+  const { theme, accent, resolved, setTheme, setAccent } = useTheme();
 
   return (
-    <Card title={t("appearance.title")}>
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs text-muted-foreground">{t("lang.label")}</span>
+    <>
+      <SettingsSection title={t("lang.label")} description={t("appearance.lang_help")}>
           <Tabs value={locale} onValueChange={(value) => void setLocale(value as Locale)}>
             <TabsList>
               {LOCALES.map((code) => (
@@ -39,9 +40,8 @@ function AppearanceCard() {
               ))}
             </TabsList>
           </Tabs>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs text-muted-foreground">{t("theme.label")}</span>
+      </SettingsSection>
+      <SettingsSection title={t("theme.label")} description={t("appearance.theme_help")}>
           <Tabs value={theme} onValueChange={(value) => void setTheme(value as ThemeChoice)}>
             <TabsList>
               {THEMES.map((choice) => (
@@ -49,25 +49,25 @@ function AppearanceCard() {
               ))}
             </TabsList>
           </Tabs>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs text-muted-foreground">{t("appearance.accent")}</span>
-          <div className="flex gap-2">
+      </SettingsSection>
+      <SettingsSection title={t("appearance.accent")} description={t("appearance.accent_help")}>
+          <div className="flex flex-wrap gap-2">
             {ACCENTS.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 aria-label={item.id}
+                title={item.id}
                 aria-pressed={accent === item.id}
-                className="size-11 rounded-full border-2 border-transparent ring-offset-2 ring-offset-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:ring-2 aria-pressed:ring-foreground"
-                style={{ background: item.light }}
+                className="grid size-11 place-items-center rounded-full ring-border transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:ring-2 aria-pressed:ring-foreground"
                 onClick={() => void setAccent(item.id as AccentId)}
-              />
+              >
+                <span className="size-7 rounded-full" style={{ background: resolved === "dark" ? item.dark : item.light }} />
+              </button>
             ))}
           </div>
-        </div>
-      </div>
-    </Card>
+      </SettingsSection>
+    </>
   );
 }
 
@@ -108,13 +108,12 @@ function ModelCard() {
   };
 
   return (
-    <Card title={t("byok.title")}>
-      <p className="text-[0.82rem] text-muted-foreground">{t("byok.help")}</p>
-      <form className="mt-2.5 flex flex-wrap items-end gap-2.5" onSubmit={(e) => void save(e)}>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+    <SettingsSection title={t("byok.title")} description={t("byok.help")}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => void save(e)}>
+        <label className={FIELD}>
           {t("byok.provider")}
           <Select value={provider} onValueChange={(value) => setProvider(value as SettingsView["llmProvider"])}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-10 w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">{t("byok.provider_none")}</SelectItem>
               <SelectItem value="anthropic">{t("byok.provider_anthropic")}</SelectItem>
@@ -123,32 +122,36 @@ function ModelCard() {
             </SelectContent>
           </Select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          {t("byok.api_key")}
-          <Input type="password" value={apiKey} placeholder={settings?.keyHint ? `••••${settings.keyHint}` : ""} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
+        <label className={FIELD}>
+          <span className="flex items-center justify-between gap-2">
+            {t("byok.api_key")}
+            {settings?.keySet
+              ? <Pill tone="good">{t("byok.key_set", { hint: settings.keyHint ?? "" })}</Pill>
+              : <Pill>{t("byok.key_missing")}</Pill>}
+          </span>
+          <Input className="h-10" type="password" value={apiKey} placeholder={settings?.keyHint ? `••••${settings.keyHint}` : ""} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
         </label>
-        <Button>{t("byok.save")}</Button>
-      </form>
-      <p className="text-[0.82rem] text-muted-foreground">
-        {settings?.keySet ? t("byok.key_set", { hint: settings.keyHint ?? "" }) : t("byok.key_missing")}
-      </p>
-      <details className="mt-3">
-        <summary className="cursor-pointer text-sm text-muted-foreground">{t("more.options")}</summary>
-        <div className="mt-2 flex flex-wrap gap-2.5">
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            {t("byok.model")}
-            <Input type="text" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" />
-          </label>
-          {provider === "compatible" && (
-            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-              {t("byok.base_url")}
-              <Input type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+        <details className="group">
+          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">{t("more.options")}</summary>
+          <div className="mt-3 flex flex-col gap-4">
+            <label className={FIELD}>
+              {t("byok.model")}
+              <Input className="h-10" type="text" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" />
             </label>
-          )}
+            {provider === "compatible" && (
+              <label className={FIELD}>
+                {t("byok.base_url")}
+                <Input className="h-10" type="url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+              </label>
+            )}
+          </div>
+        </details>
+        <div className="flex items-center justify-end gap-3">
+          {msg && <p className="text-sm text-muted-foreground" role="status">{msg}</p>}
+          <Button>{t("byok.save")}</Button>
         </div>
-      </details>
-      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
-    </Card>
+      </form>
+    </SettingsSection>
   );
 }
 
@@ -196,10 +199,13 @@ function McpCard() {
   };
 
   return (
-    <Card title={t("mcp.title")}>
-      <p className="text-[0.82rem] text-muted-foreground">{t("mcp.help")}</p>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <label className="flex min-h-11 items-center gap-2 text-sm">
+    <SettingsSection title={t("mcp.title")} description={t("mcp.help")}>
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex min-h-11 flex-1 items-center justify-between gap-3 text-sm font-medium">
+          <span className="flex items-center gap-2">
+            {t("mcp.enable")}
+            {view?.running ? <Pill tone="good">{t("mcp.running_short")}</Pill> : <Pill>{t("mcp.stopped")}</Pill>}
+          </span>
           <Switch
             checked={enabled}
             onCheckedChange={(checked) => {
@@ -207,26 +213,29 @@ function McpCard() {
               void persist(checked).catch((err: Error) => setMsg(err.message));
             }}
           />
-          {t("mcp.enable")}
         </label>
-        {enabled && (
-          <Button type="button" variant="outline" onClick={() => void copy()} disabled={!view?.tokenHint}>{t("mcp.copy")}</Button>
-        )}
       </div>
-      <details className="mt-3">
-        <summary className="cursor-pointer text-sm text-muted-foreground">{t("more.options")}</summary>
-        <form className="mt-2 flex flex-wrap items-end gap-2.5" onSubmit={(e) => { e.preventDefault(); void persist(enabled).catch((err: Error) => setMsg(err.message)); }}>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">{view?.running ? t("mcp.running") : t("mcp.stopped")}</p>
+      {enabled && (
+        <div className="mt-4">
+          <Button type="button" variant="outline" onClick={() => void copy()} disabled={!view?.tokenHint}>
+            <Copy strokeWidth={1.75} />{t("mcp.copy")}
+          </Button>
+        </div>
+      )}
+      <details className="mt-4 border-t border-rule pt-3">
+        <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">{t("more.options")}</summary>
+        <form className="mt-3 flex flex-wrap items-end gap-2.5" onSubmit={(e) => { e.preventDefault(); void persist(enabled).catch((err: Error) => setMsg(err.message)); }}>
+          <label className={FIELD}>
             {t("mcp.port")}
-            <Input type="number" min={1024} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
+            <Input className="num h-10 w-32" type="number" min={1024} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
           </label>
-          <Button type="submit" variant="outline">{t("byok.save")}</Button>
-          <Button type="button" variant="outline" onClick={() => void rotate()}>{t("mcp.rotate")}</Button>
+          <Button type="submit" variant="outline" className="h-10">{t("byok.save")}</Button>
+          <Button type="button" variant="outline" className="h-10" onClick={() => void rotate()}>{t("mcp.rotate")}</Button>
         </form>
-        {token && <p className="mt-2"><code>{token}</code></p>}
+        {token && <p className="mt-3"><code className="rounded-md bg-muted px-2 py-1 font-mono text-sm">{token}</code></p>}
       </details>
-      <p className="mt-2 text-[0.82rem] text-muted-foreground">{view?.running ? t("mcp.running") : t("mcp.stopped")}</p>
-      {msg && <p className="mt-3 rounded-md bg-accent px-3 py-2 text-sm">{msg}</p>}
-    </Card>
+      {msg && <p className="mt-3 text-sm text-muted-foreground" role="status">{msg}</p>}
+    </SettingsSection>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/animate-ui/components/animate/tabs";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, type SettingsView, type Status } from "../api";
 import { useI18n } from "../i18n";
@@ -64,8 +65,7 @@ export default function Onboarding({ status, onDone, notify }: {
   };
 
   return (
-    <div className="mx-auto flex max-w-[520px] flex-col gap-4 py-10">
-      <h1 className="text-xl font-semibold">{t("onboard.title")}</h1>
+    <div className="flex max-w-[560px] flex-col items-start gap-4 rounded-2xl border bg-card p-6">
       {step === 0 && (
         <>
           <p className="text-sm text-muted-foreground">{t("onboard.step_lang")}</p>
@@ -99,30 +99,33 @@ export default function Onboarding({ status, onDone, notify }: {
         <>
           <p className="text-sm text-muted-foreground">{t("onboard.step_key")}</p>
           <Select value={provider} onValueChange={(value) => setProvider(value as typeof provider)}>
-            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-10 w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="anthropic">{t("byok.provider_anthropic")}</SelectItem>
               <SelectItem value="openai">{t("byok.provider_openai")}</SelectItem>
               <SelectItem value="compatible">{t("byok.provider_compatible")}</SelectItem>
             </SelectContent>
           </Select>
-          <input
-            className="rounded-md border bg-card px-2 py-1 text-sm"
+          <Input
+            className="h-10"
+            aria-label={t("byok.model")}
             placeholder={t("byok.model")}
             value={model}
             onChange={(e) => setModel(e.target.value)}
           />
           {provider === "compatible" && (
-            <input
-              className="rounded-md border bg-card px-2 py-1 text-sm"
+            <Input
+              className="h-10"
+              aria-label={t("byok.base_url")}
               placeholder={t("byok.base_url")}
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
             />
           )}
-          <input
-            className="rounded-md border bg-card px-2 py-1 text-sm"
+          <Input
+            className="h-10"
             type="password"
+            aria-label={t("byok.api_key")}
             placeholder={t("byok.api_key")}
             value={key}
             onChange={(e) => setKey(e.target.value)}

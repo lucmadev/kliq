@@ -15,6 +15,7 @@
     "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@tailwindcss/vite": "^4.3.3",
     "animejs": "^4.5.0",
