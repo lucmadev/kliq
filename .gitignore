@@ -11,3 +11,4 @@ __pycache__/
 .cursor/
 anti-slop
 .taste-skill/
+.ds-sync/
