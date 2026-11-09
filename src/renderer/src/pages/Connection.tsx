@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { Input } from "@/components/ui/input";
@@ -17,16 +17,6 @@ export default function Connection({ status, refresh, notify }: {
   const { t, locale } = useI18n();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [secretHint, setSecretHint] = useState<string | null>(null);
-
-  useEffect(() => {
-    api.client().then((client) => {
-      setClientId(client.clientId);
-      setSecretHint(client.secretHint);
-    }).catch(() => undefined);
-  }, [status.configured, status.connected]);
 
   const sync = async () => {
     setBusy(true);
@@ -53,22 +43,6 @@ export default function Connection({ status, refresh, notify }: {
     setBusy(true);
     try {
       await api.activateAccount(id);
-      refresh();
-    } catch (err) {
-      setMsg((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const saveClient = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const saved = await api.saveClient(clientId, clientSecret);
-      setClientSecret("");
-      setSecretHint(saved.secretHint);
-      setMsg(t("conn.save_client"));
       refresh();
     } catch (err) {
       setMsg((err as Error).message);
@@ -145,17 +119,7 @@ export default function Connection({ status, refresh, notify }: {
             {status.accounts.some((account) => account.connected) ? t("accounts.add") : t("conn.connect")}
           </Button>
         </div>
-        {!status.configured && (
-          <form className="mt-4 flex flex-col gap-4 border-t border-rule pt-4" onSubmit={(e) => void saveClient(e)}>
-            <p className="text-sm text-muted-foreground">
-              {t("conn.missing_client")}{" "}
-              <a className="font-medium text-tint-ink underline-offset-2 hover:underline" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">{t("conn.console")}</a>
-            </p>
-            <label className={FIELD}>{t("conn.client_id")} <Input className="h-10" value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" /></label>
-            <label className={FIELD}>{t("conn.client_secret")} <Input className="h-10" type="password" value={clientSecret} placeholder={secretHint ? `••••${secretHint}` : ""} onChange={(e) => setClientSecret(e.target.value)} autoComplete="off" /></label>
-            <div className="flex justify-end"><Button variant="outline" disabled={busy}>{t("conn.save_client")}</Button></div>
-          </form>
-        )}
+        {!status.configured && <p className="mt-3 text-sm text-muted-foreground" role="status">{t("error.not_configured")}</p>}
         {msg && <p className="mt-3 text-sm text-muted-foreground" role="status">{msg}</p>}
       </SettingsSection>
 

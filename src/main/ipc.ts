@@ -18,7 +18,7 @@ import { isAccent, isTheme, type AccentId, type ThemeChoice } from "../shared/th
 import { listVideos, videoDetail } from "./videos";
 import { importReach } from "./csv";
 import { buildRange, buildReport, isCalendarWeek, latestReach, saveReport } from "./report";
-import { clientView, disconnectAccount, isConfigured, isConnected, saveClient } from "./auth";
+import { disconnectAccount, isConfigured, isConnected } from "./auth";
 import { startLogin } from "./oauth";
 import { fetchRetention, isRunning, runSync } from "./youtube";
 import { clearLlmKey, llmReady, saveLlmKey, settingsView, summarizeReport, updateSettings } from "./llm";
@@ -151,12 +151,6 @@ export function registerIpc(): void {
     return { imported };
   });
   handle("reach", () => latestReach(channelDb()));
-  handle("client", () => clientView());
-  handle("save-client", (payload) => {
-    const body = payload as { clientId?: string; clientSecret?: string };
-    saveClient(body.clientId ?? "", body.clientSecret ?? "", currentLocale());
-    return clientView();
-  });
   handle("connect", () => {
     startLogin(currentLocale());
     return { ok: true };

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { clientView, isConnected, saveClient } from "../src/main/auth";
+import { bundledGoogleClient, isConnected } from "../src/main/auth";
 import { SECRET, secretSet, useSecretStore } from "../src/main/secrets";
 
-describe("oauth client view", () => {
-  it("shows a hint and never the full secret", () => {
+describe("bundled google client", () => {
+  it("uses the compiled client and ignores a keychain override", () => {
     const memory = new Map<string, string>();
     useSecretStore({
       available: () => true,
@@ -13,13 +13,18 @@ describe("oauth client view", () => {
         else memory.set(key, value);
       },
     });
-    saveClient("client-id", "super-secret-value", "en");
-    const view = clientView();
-    expect(view.clientId).toBe("client-id");
-    expect(view.secretHint).toBe("alue");
-    expect(JSON.stringify(view)).not.toContain("super-secret-value");
+    secretSet(SECRET.clientId, "from-keychain");
+    secretSet(SECRET.clientSecret, "keychain-secret");
+
+    expect(bundledGoogleClient({ clientId: " app-id ", clientSecret: " app-secret " })).toEqual({
+      clientId: "app-id",
+      clientSecret: "app-secret",
+    });
+    expect(bundledGoogleClient({ clientId: "app-id", clientSecret: "" })).toBeNull();
+    expect(bundledGoogleClient({ clientId: "", clientSecret: "app-secret" })).toBeNull();
+    expect(JSON.stringify(bundledGoogleClient({ clientId: "app-id", clientSecret: "app-secret" }))).not.toContain("keychain");
+
     secretSet(SECRET.refreshToken, "refresh-token-value");
     expect(isConnected()).toBe(true);
-    expect(JSON.stringify(clientView())).not.toContain("refresh-token-value");
   });
 });

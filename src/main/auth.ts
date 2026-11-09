@@ -1,7 +1,7 @@
 import { OAuth2Client } from "google-auth-library";
 import { accountTokenKey, activeAccountId, DEMO_ID, metaReady } from "./accounts";
 import { AppError } from "./errors";
-import { SECRET, secretGet, secretSet, secretsAvailable } from "./secrets";
+import { SECRET, secretGet, secretSet } from "./secrets";
 import { translate, type Locale } from "../shared/i18n";
 
 export const SCOPES = [
@@ -9,8 +9,21 @@ export const SCOPES = [
   "https://www.googleapis.com/auth/yt-analytics.readonly",
 ];
 
+export type GoogleClientEnv = { clientId?: string; clientSecret?: string };
+
+export function bundledGoogleClient(env?: GoogleClientEnv): { clientId: string; clientSecret: string } | null {
+  const source = env ?? {
+    clientId: import.meta.env.GOOGLE_CLIENT_ID,
+    clientSecret: import.meta.env.GOOGLE_CLIENT_SECRET,
+  };
+  const clientId = source.clientId?.trim() ?? "";
+  const clientSecret = source.clientSecret?.trim() ?? "";
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
 export function isConfigured(): boolean {
-  return Boolean(secretGet(SECRET.clientId) && secretGet(SECRET.clientSecret));
+  return bundledGoogleClient() != null;
 }
 
 export function isConnected(): boolean {
@@ -20,39 +33,20 @@ export function isConnected(): boolean {
   return Boolean(secretGet(accountTokenKey(id)));
 }
 
-export function clientView(): { clientId: string; secretHint: string | null } {
-  const secret = secretGet(SECRET.clientSecret);
-  return {
-    clientId: secretGet(SECRET.clientId) ?? "",
-    secretHint: secret ? secret.slice(-4) : null,
-  };
-}
-
-export function saveClient(clientId: string, clientSecret: string, locale: Locale): void {
-  if (!secretsAvailable()) throw new AppError(translate(locale, "error.keychain"));
-  const id = clientId.trim();
-  if (!id) throw new AppError(translate(locale, "error.not_configured"));
-  secretSet(SECRET.clientId, id);
-  const nextSecret = clientSecret.trim();
-  if (nextSecret) secretSet(SECRET.clientSecret, nextSecret);
-  else if (!secretGet(SECRET.clientSecret)) throw new AppError(translate(locale, "error.not_configured"));
-}
-
 export function disconnectAccount(id: string): void {
   if (!id || id === DEMO_ID) return;
   secretSet(accountTokenKey(id), null);
 }
 
 export async function loadClient(locale: Locale): Promise<OAuth2Client> {
-  const clientId = secretGet(SECRET.clientId);
-  const clientSecret = secretGet(SECRET.clientSecret);
+  const google = bundledGoogleClient();
   const id = activeAccountId();
   const refreshToken = metaReady()
     ? (id && id !== DEMO_ID ? secretGet(accountTokenKey(id)) : null)
     : secretGet(SECRET.refreshToken);
-  if (!clientId || !clientSecret) throw new AppError(translate(locale, "error.not_configured"));
+  if (!google) throw new AppError(translate(locale, "error.not_configured"));
   if (!refreshToken) throw new AppError(translate(locale, "error.not_connected"));
-  const client = new OAuth2Client({ clientId, clientSecret });
+  const client = new OAuth2Client(google);
   client.setCredentials({ refresh_token: refreshToken });
   await client.getAccessToken();
   return client;

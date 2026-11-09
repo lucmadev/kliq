@@ -4,10 +4,10 @@ import { BrowserWindow, shell } from "electron";
 import { CodeChallengeMethod, OAuth2Client } from "google-auth-library";
 import { google } from "googleapis";
 import { saveConnectedChannel, type ConnectedChannel } from "./accounts";
-import { SCOPES } from "./auth";
+import { bundledGoogleClient, SCOPES } from "./auth";
 import { AppError } from "./errors";
 import { database } from "./db";
-import { SECRET, secretGet, secretsAvailable } from "./secrets";
+import { secretsAvailable } from "./secrets";
 import { translate, type Locale } from "../shared/i18n";
 import { isRunning, runSync } from "./youtube";
 
@@ -30,9 +30,8 @@ function page(locale: Locale, ok: boolean): string {
 }
 
 export function startLogin(locale: Locale): void {
-  if (!secretGet(SECRET.clientId) || !secretGet(SECRET.clientSecret)) {
-    throw new AppError(translate(locale, "error.not_configured"));
-  }
+  const creds = bundledGoogleClient();
+  if (!creds) throw new AppError(translate(locale, "error.not_configured"));
   if (!secretsAvailable()) throw new AppError(translate(locale, "error.keychain"));
   const now = Date.now();
   for (const [state, item] of pending) {
@@ -79,11 +78,7 @@ export function startLogin(locale: Locale): void {
     const state = randomBytes(16).toString("base64url");
     const codeVerifier = randomBytes(32).toString("base64url");
     pending.set(state, { verifier: codeVerifier, at: Date.now() });
-    const client = new OAuth2Client({
-      clientId: secretGet(SECRET.clientId) ?? "",
-      clientSecret: secretGet(SECRET.clientSecret) ?? "",
-      redirectUri,
-    });
+    const client = new OAuth2Client({ ...creds, redirectUri });
     const url = client.generateAuthUrl({
       access_type: "offline",
       prompt: "consent select_account",
@@ -98,10 +93,9 @@ export function startLogin(locale: Locale): void {
 }
 
 async function identifyMine(refreshToken: string, locale: Locale): Promise<ConnectedChannel> {
-  const client = new OAuth2Client({
-    clientId: secretGet(SECRET.clientId) ?? "",
-    clientSecret: secretGet(SECRET.clientSecret) ?? "",
-  });
+  const creds = bundledGoogleClient();
+  if (!creds) throw new AppError(translate(locale, "error.not_configured"));
+  const client = new OAuth2Client(creds);
   client.setCredentials({ refresh_token: refreshToken });
   const yt = google.youtube({ version: "v3", auth: client });
   const resp = await yt.channels.list({ part: ["snippet", "statistics"], mine: true });
@@ -121,11 +115,9 @@ async function finishLogin(code: string, state: string, redirectUri: string, loc
   const item = pending.get(state);
   pending.delete(state);
   if (!item || Date.now() - item.at > TTL_MS) throw new AppError(translate(locale, "error.oauth_state"));
-  const client = new OAuth2Client({
-    clientId: secretGet(SECRET.clientId) ?? "",
-    clientSecret: secretGet(SECRET.clientSecret) ?? "",
-    redirectUri,
-  });
+  const creds = bundledGoogleClient();
+  if (!creds) throw new AppError(translate(locale, "error.not_configured"));
+  const client = new OAuth2Client({ ...creds, redirectUri });
   const { tokens } = await client.getToken({ code, codeVerifier: item.verifier });
   if (!tokens.refresh_token) throw new AppError(translate(locale, "error.oauth_no_refresh"));
   const busy = isRunning();

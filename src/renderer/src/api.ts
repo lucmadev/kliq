@@ -164,9 +164,6 @@ export const api = {
   accounts: () => window.kliq.accounts() as Promise<AccountView[]>,
   activateAccount: (id: string) => window.kliq.activateAccount(id) as Promise<{ ok: boolean }>,
   disconnect: (id: string) => window.kliq.disconnect(id) as Promise<{ ok: boolean }>,
-  client: () => window.kliq.client() as Promise<{ clientId: string; secretHint: string | null }>,
-  saveClient: (clientId: string, clientSecret: string) =>
-    window.kliq.saveClient({ clientId, clientSecret }) as Promise<{ clientId: string; secretHint: string | null }>,
   connect: () => window.kliq.connect() as Promise<{ ok: boolean }>,
   onAuth: (cb: (result: { ok: boolean; message?: string }) => void) => window.kliq.onAuth(cb),
   importReach: async (file: File, start: string, end: string) =>

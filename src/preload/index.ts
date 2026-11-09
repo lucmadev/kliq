@@ -41,8 +41,6 @@ const kliq = {
   accounts: () => ipcRenderer.invoke("accounts"),
   activateAccount: (id: string) => ipcRenderer.invoke("activate-account", id),
   disconnect: (id: string) => ipcRenderer.invoke("disconnect", id),
-  client: () => ipcRenderer.invoke("client"),
-  saveClient: (payload: { clientId: string; clientSecret: string }) => ipcRenderer.invoke("save-client", payload),
   connect: () => ipcRenderer.invoke("connect"),
   onAuth: (cb: (result: { ok: boolean; message?: string }) => void) => {
     const listener = (_event: unknown, result: { ok: boolean; message?: string }) => cb(result);

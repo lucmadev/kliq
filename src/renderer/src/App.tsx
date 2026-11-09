@@ -40,7 +40,7 @@ export default function App() {
         setStatus(next);
         if (wizard !== "unknown") return;
         const done = await api.onboarded().catch(() => true);
-        setWizard(!done && !next.channel && !next.demo ? "show" : "hide");
+        setWizard(done ? "hide" : "show");
       })
       .catch((e: Error) => setError(e.message));
   }, [refresh, locale, wizard]);

@@ -31,7 +31,9 @@ npm run dist
 
 ## YouTube sign-in
 
-Create an OAuth client of type **Desktop** in Google Cloud Console and enable YouTube Data API v3 and YouTube Analytics API. In Kliq, open Connection, paste the client id and secret, and choose Connect. The system browser returns to `http://127.0.0.1` on a free port. The refresh token is stored in the OS keychain.
+Choose Connect. Kliq opens Google in the system browser and returns to `http://127.0.0.1` on a free port. The refresh token is stored in the OS keychain. People who download a build sign in with that button.
+
+The OAuth client is part of the build. Before `npm run dev` or `npm run dist`, create one Desktop client with YouTube Data API v3 and YouTube Analytics API, then put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`. See `.env.example`. That file stays out of git.
 
 Scopes are read-only: `youtube.readonly` and `yt-analytics.readonly`.
 
