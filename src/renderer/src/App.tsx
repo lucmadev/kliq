@@ -101,7 +101,7 @@ export default function App() {
     setView(next);
     setMenuOpen(false);
   };
-  const title = wizard === "show" ? t("onboard.title") : t(NAV_LABEL[view]);
+  const title = t(NAV_LABEL[view]);
 
   return (
     <div className={cn("flex h-full overflow-hidden bg-background", frame)}>
@@ -126,9 +126,7 @@ export default function App() {
           <WindowControls />
         </header>
         <main ref={panel} className="min-h-0 flex-1 overflow-auto px-8 pt-2 pb-12 max-[760px]:px-4">
-          {wizard === "show" ? (
-            <Onboarding status={status} onDone={() => setWizard("hide")} notify={notify} />
-          ) : !hasData && !settingsView ? (
+          {!hasData && !settingsView ? (
             <div className="flex max-w-[560px] flex-col items-start gap-3 rounded-2xl border bg-card p-6">
               <h2 className="text-lg font-semibold">{t("empty.title")}</h2>
               <p className="text-sm text-muted-foreground">{t("empty.body")}</p>
@@ -143,6 +141,7 @@ export default function App() {
           )}
         </main>
       </div>
+      {wizard === "show" && <Onboarding status={status} onDone={() => setWizard("hide")} notify={notify} />}
     </div>
   );
 }

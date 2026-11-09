@@ -120,6 +120,7 @@ const en = {
   "onboard.step_summary": "Or write the weekly summary in the app",
   "onboard.summary_on": "Turn on the summary",
   "onboard.step_accent": "Pick the accent color",
+  "onboard.progress": "Step {current} of {total}",
 
   "delta.new": "new",
   "empty.none": "none",
@@ -493,6 +494,7 @@ const es: { [K in keyof typeof en]: string } = {
   "onboard.step_summary": "O escribí el resumen semanal en la app",
   "onboard.summary_on": "Activar el resumen",
   "onboard.step_accent": "Elegí el color de énfasis",
+  "onboard.progress": "Paso {current} de {total}",
 
   "delta.new": "nuevo",
   "empty.none": "sin dato",

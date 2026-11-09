@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Copy } from "lucide-react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { Button } from "@/components/animate-ui/components/buttons/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ACCENTS, type AccentId } from "../../../shared/theme";
@@ -77,12 +79,34 @@ export default function Onboarding({ status, onDone, notify }: {
   };
 
   const summaryReady = provider === "compatible" ? baseUrl.trim().length > 0 : key.trim().length > 0;
+  const description = step === 0 ? t("onboard.step_connect") : step === 1 ? t("onboard.step_ai") : t("onboard.step_accent");
+  const keepOpen = (event: { preventDefault: () => void; target: EventTarget | null }) => {
+    if (event.target instanceof Element && event.target.closest("[data-slot=select-content]")) return;
+    event.preventDefault();
+  };
 
   return (
-    <div className="flex max-w-[560px] flex-col items-start gap-4 rounded-2xl border bg-card p-6">
+    <DialogPrimitive.Root open onOpenChange={() => undefined}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
+        <DialogPrimitive.Content
+          className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100vh-2rem)] w-[min(32rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-auto rounded-xl border bg-card p-6 text-card-foreground shadow-lg"
+          onEscapeKeyDown={keepOpen}
+          onPointerDownOutside={keepOpen}
+          onInteractOutside={keepOpen}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">{t("onboard.progress", { current: step + 1, total: 3 })}</p>
+            <div className="flex gap-1.5" aria-hidden>
+              {[0, 1, 2].map((item) => (
+                <span key={item} className={cn("h-1.5 w-6 rounded-full", item === step ? "bg-primary" : "bg-muted")} />
+              ))}
+            </div>
+          </div>
+          <DialogPrimitive.Title className="text-lg font-semibold">{t("onboard.title")}</DialogPrimitive.Title>
+          <DialogPrimitive.Description className="text-sm text-muted-foreground">{description}</DialogPrimitive.Description>
       {step === 0 && (
         <>
-          <p className="text-sm text-muted-foreground">{t("onboard.step_connect")}</p>
           <p className="text-sm">{t("accounts.signed_out")}</p>
           <Button disabled={busy || !status.configured} onClick={connect}>{t("conn.connect")}</Button>
           {!status.configured && <p className="text-sm text-muted-foreground" role="status">{t("error.not_configured")}</p>}
@@ -90,7 +114,6 @@ export default function Onboarding({ status, onDone, notify }: {
       )}
       {step === 1 && (
         <>
-          <p className="text-sm text-muted-foreground">{t("onboard.step_ai")}</p>
           <p className="text-sm">{t("mcp.help")}</p>
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy || agentOn} onClick={enableAgent}>{t("onboard.agent_on")}</Button>
@@ -139,7 +162,6 @@ export default function Onboarding({ status, onDone, notify }: {
       )}
       {step === 2 && (
         <>
-          <p className="text-sm text-muted-foreground">{t("onboard.step_accent")}</p>
           <p className="text-sm">{t("appearance.accent_help")}</p>
           <div className="flex flex-wrap gap-2">
             {ACCENTS.map((item) => (
@@ -159,6 +181,8 @@ export default function Onboarding({ status, onDone, notify }: {
           <Button onClick={finish}>{t("onboard.next")}</Button>
         </>
       )}
-    </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
